@@ -1,8 +1,7 @@
-// features/listing/types.ts
 import type { Listing, User, SellerProfile, Review } from '@/types';
 
 export interface FullListing extends Listing {
-  seller: Pick<User, 'id' | 'name' | 'rating_avg' | 'rating_count' | 'verification_level' | 'last_active_at'>;
+  seller: Pick<User, 'id' | 'name' | 'phone' | 'rating_avg' | 'rating_count' | 'verification_level' | 'last_active_at'>;
   seller_profile: SellerProfile;
   category?: { name: string; slug: string };
   reviews_preview?: Review[];

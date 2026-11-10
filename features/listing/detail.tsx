@@ -17,7 +17,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
   const data = full || teaser;
   if (!data) return null;
 
-  // Cast to any to fix the TypeScript union error
   const safeData = data as any;
   
   const images = safeData.images.length > 0 ? safeData.images : ['placeholder'];
