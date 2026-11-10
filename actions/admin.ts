@@ -14,7 +14,9 @@ export async function adminLogin(email: string, password: string) {
   const result = await verifyAdminCredentials(email, password);
   if (!result.ok) return { error: result.error };
 
-  const session = await (await createServerSupabase()).auth.getUser();
+  const supabase = await createServerSupabase();
+  const session = await supabase.auth.getUser();
+  
   if (session.data.user) {
     await writeAuditLog({
       adminId: session.data.user.id,
@@ -72,7 +74,6 @@ export async function approvePayment(paymentId: string) {
     })
     .eq('id', payment.seller_id);
 
-  // Unhide existing listings
   await supabase
     .from('listings')
     .update({ status: 'active' })
@@ -180,12 +181,15 @@ export async function updateUserField(
 
   if (error) return { error: error.message };
 
+  // Cast before to any to fix the TypeScript index error
+  const oldValue = before ? String((before as any)[field] ?? '') : '';
+
   await writeAuditLog({
     adminId: session.profile.id,
     targetType: 'user',
     targetId: userId,
     fieldChanged: field,
-    oldValue: String(before?.[field] ?? ''),
+    oldValue: oldValue,
     newValue: String(newValue ?? ''),
   });
 

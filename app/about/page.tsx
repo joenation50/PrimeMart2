@@ -1,4 +1,3 @@
-// app/about/page.tsx
 import { Metadata } from 'next';
 import { ShieldCheck, MessageCircle, Store, Code2, Phone, Mail } from 'lucide-react';
 

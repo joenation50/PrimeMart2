@@ -124,15 +124,15 @@ export function PaywallView({ user, existingPayment }: { user: User; existingPay
             <div className="rounded-lg bg-muted p-4 text-sm">
               <p className="flex justify-between py-1">
                 <span className="text-muted-foreground">Bank</span>
-                <span className="font-medium">{isNigeria ? 'GTBank' : 'Chase Bank'}</span>
+                <span className="font-medium">Moniepoint</span>
               </p>
               <p className="flex justify-between py-1">
                 <span className="text-muted-foreground">Account Number</span>
-                <span className="font-medium">{isNigeria ? '0123456789' : '1234567890'}</span>
+                <span className="font-medium">08075771583</span>
               </p>
               <p className="flex justify-between py-1">
                 <span className="text-muted-foreground">Account Name</span>
-                <span className="font-medium">PrimeMart Ltd</span>
+                <span className="font-medium">Joseph Nwankwo-uzo</span>
               </p>
               <p className="flex justify-between py-1 border-t border-border/50 mt-2 pt-2">
                 <span className="font-medium text-foreground">Transfer Reference</span>
