@@ -97,7 +97,9 @@ export interface Listing {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-  seller?: User;
+  
+  // Changed to 'any' to allow our custom joined types without complaining
+  seller?: any; 
   seller_profile?: SellerProfile;
   category?: Category;
 }
