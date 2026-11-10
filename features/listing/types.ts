@@ -1,9 +1,9 @@
 import type { Listing, SellerProfile, Review } from '@/types';
 
 export interface FullListing extends Listing {
-  seller: any; // Matches the 'any' type in the base Listing interface
+  seller: any; 
   seller_profile: SellerProfile;
-  category?: { name: string; slug: string };
+  category?: any; // <-- Changed this line
   reviews_preview?: Review[];
   is_favorited?: boolean;
 }

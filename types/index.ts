@@ -98,10 +98,10 @@ export interface Listing {
   updated_at: string;
   deleted_at: string | null;
   
-  // Changed to 'any' to allow our custom joined types without complaining
+  // Changed these to 'any' to allow our custom joined types
   seller?: any; 
   seller_profile?: SellerProfile;
-  category?: Category;
+  category?: any; // <-- Changed this line
 }
 
 export interface ListingCard {
