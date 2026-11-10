@@ -6,9 +6,8 @@ import { Step1Country } from './Step1Country';
 import { Step2Auth } from './Step2Auth';
 import { Step3Profile } from './Step3Profile';
 import { Step4Confirm } from './Step4Confirm';
-import { createBrowserSupabase } from '@/lib/supabase';
+import { createBrowserSupabase } from '@/lib/supabase-browser'; // <-- FIXED IMPORT
 import { useRouter } from 'next/navigation';
-import type { User } from '@/types';
 
 export type SignupData = {
   country: string;
@@ -24,7 +23,7 @@ export type SignupData = {
 export function SignupFlow() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [data, setData] = useState < SignupData > ({
+  const [data, setData] = useState<SignupData>({
     country: 'NG',
     intent: null,
     email: '',
@@ -34,19 +33,19 @@ export function SignupFlow() {
     business_name: '',
     city: '',
   });
-  
-  function updateData(fields: Partial < SignupData > ) {
+
+  function updateData(fields: Partial<SignupData>) {
     setData((prev) => ({ ...prev, ...fields }));
   }
-  
+
   function nextStep() {
     setStep((s) => s + 1);
   }
-  
+
   function prevStep() {
     setStep((s) => s - 1);
   }
-  
+
   async function finalizeSignup() {
     const supabase = createBrowserSupabase();
     
@@ -61,16 +60,16 @@ export function SignupFlow() {
         },
       },
     });
-    
+
     if (authError) throw new Error(authError.message);
     if (!authData.user) throw new Error('Signup failed');
-    
+
     // 2. Update public.users (country is locked after this)
     await supabase
       .from('users')
       .update({ country: data.country, country_locked: true })
       .eq('id', authData.user.id);
-    
+
     // 3. If they want to sell, create seller profile draft
     if (data.intent === 'sell') {
       await supabase.from('seller_profiles').insert({
@@ -86,12 +85,12 @@ export function SignupFlow() {
         .update({ role: 'seller', seller_status: 'unpaid' })
         .eq('id', authData.user.id);
     }
-    
+
     // Redirect to paywall if selling, otherwise to home
     router.push(data.intent === 'sell' ? '/paywall' : '/');
     router.refresh();
   }
-  
+
   return (
     <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-sm sm:p-8">
       {/* Progress Bar */}
