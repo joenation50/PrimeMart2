@@ -1,73 +1,39 @@
-// lib/supabase.ts
-import { createBrowserClient, createServerClient } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import type { NextRequest, NextResponse } from 'next/server';
 import { env } from './env';
 
-// ============================================================
-// BROWSER CLIENT — use in client components
-// ============================================================
-export function createBrowserSupabase() {
-  return createBrowserClient(env.supabaseUrl, env.supabaseAnonKey);
-}
-
-// ============================================================
-// SERVER CLIENT — use in server components, server actions, route handlers
-// ============================================================
 export async function createServerSupabase() {
   const cookieStore = await cookies();
-
   return createServerClient(env.supabaseUrl, env.supabaseAnonKey, {
     cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
+      getAll() { return cookieStore.getAll(); },
       setAll(cookiesToSet) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
-        } catch {
-          // Server Component — safe to ignore.
-        }
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {}
       },
     },
   });
 }
 
-// ============================================================
-// ADMIN CLIENT — service role, bypasses RLS. Server-only.
-// ============================================================
 export function createAdminSupabase() {
   return createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
 
-// ============================================================
-// MIDDLEWARE HELPER — refreshes session on every request
-// ============================================================
-export async function updateSession(
-  request: NextRequest,
-  response: NextResponse
-): Promise<NextResponse> {
+export async function updateSession(request: NextRequest, response: NextResponse): Promise<NextResponse> {
   const supabase = createServerClient(env.supabaseUrl, env.supabaseAnonKey, {
     cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
+      getAll() { return request.cookies.getAll(); },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => {
-          request.cookies.set(name, value);
-        });
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
-        });
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
       },
     },
   });
-
   await supabase.auth.getUser();
   return response;
 }

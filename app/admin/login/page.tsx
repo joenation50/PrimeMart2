@@ -1,5 +1,4 @@
-// app/admin/login/page.tsx
-import { AdminLoginForm } from '@/features/admin/login-form';
+import { LoginForm } from '@/features/admin/login-form';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -9,7 +8,7 @@ export const metadata: Metadata = {
 export default function AdminLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
-      <AdminLoginForm />
+      <LoginForm />
     </div>
   );
 }

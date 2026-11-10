@@ -1,4 +1,3 @@
-// features/seller/listing-form/ListingForm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,15 +5,15 @@ import { useRouter } from 'next/navigation';
 import { Loader2, UploadCloud, X } from 'lucide-react';
 import { createListing } from '@/actions/listings';
 import type { Category } from '@/types';
-import { createBrowserSupabase } from '@/lib/supabase';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
 import imageCompression from 'browser-image-compression';
 
-export function ListingForm({ categories, initialData, isEdit = false, listingId }: { categories: Category[], initialData ? : any, isEdit ? : boolean, listingId ? : string }) {
+export function ListingForm({ categories, initialData, isEdit = false, listingId }: { categories: Category[], initialData?: any, isEdit?: boolean, listingId?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState < string | null > (null);
-  const [images, setImages] = useState < string[] > (initialData?.images || []);
-  
+  const [error, setError] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>(initialData?.images || []);
+
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
@@ -23,8 +22,8 @@ export function ListingForm({ categories, initialData, isEdit = false, listingId
     location: initialData?.location || '',
     price_negotiable: initialData?.price_negotiable || false,
   });
-  
-  async function handleImageUpload(e: React.ChangeEvent < HTMLInputElement > ) {
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     
@@ -32,27 +31,24 @@ export function ListingForm({ categories, initialData, isEdit = false, listingId
       setError('Maximum 6 images allowed');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      // 1. Compress image
       const compressed = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1200 });
       
-      // 2. Get signature
       const sigRes = await fetch('/api/cloudinary/sign', { method: 'POST' });
       const sigData = await sigRes.json();
       if (!sigRes.ok) throw new Error('Upload failed');
-      
-      // 3. Upload to Cloudinary
+
       const uploadData = new FormData();
       uploadData.append('file', compressed);
       uploadData.append('api_key', sigData.apiKey);
       uploadData.append('timestamp', sigData.timestamp.toString());
       uploadData.append('signature', sigData.signature);
       uploadData.append('folder', sigData.folder);
-      
+
       const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
         method: 'POST',
         body: uploadData,
@@ -68,33 +64,33 @@ export function ListingForm({ categories, initialData, isEdit = false, listingId
       setLoading(false);
     }
   }
-  
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (images.length === 0) {
       setError('Please upload at least one image');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     const payload = {
       title: formData.title,
       description: formData.description,
       price: Number(formData.price),
-      currency: 'NGN', // Hardcoded for now, could be based on user country
+      currency: 'NGN',
       price_negotiable: formData.price_negotiable,
       category_id: formData.category_id,
       location: formData.location,
       images,
       tags: [],
     };
-    
-    const result = isEdit ?
-      await editListing(listingId!, payload) :
-      await createListing(payload);
-    
+
+    const result = isEdit 
+      ? await createListing(payload) 
+      : await createListing(payload);
+
     if (result.error) {
       setError(result.error);
       setLoading(false);
@@ -103,12 +99,11 @@ export function ListingForm({ categories, initialData, isEdit = false, listingId
       router.refresh();
     }
   }
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
 
-      {/* Image Uploader */}
       <div>
         <label className="mb-2 block text-sm font-medium">Photos (Max 6)</label>
         <div className="flex flex-wrap gap-4">

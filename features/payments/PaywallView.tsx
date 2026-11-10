@@ -1,4 +1,3 @@
-// features/payments/PaywallView.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,21 +5,21 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle2, Loader2, UploadCloud, X } from 'lucide-react';
 import { submitPaymentProof } from '@/actions/payments';
-import { createBrowserSupabase } from '@/lib/supabase';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
 import type { User, Payment } from '@/types';
 
-export function PaywallView({ user, existingPayment }: { user: User;existingPayment: Payment | null }) {
+export function PaywallView({ user, existingPayment }: { user: User; existingPayment: Payment | null }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState < string | null > (null);
-  const [screenshot, setScreenshot] = useState < string | null > (null);
+  const [error, setError] = useState<string | null>(null);
+  const [screenshot, setScreenshot] = useState<string | null>(null);
   const [claimedRef, setClaimedRef] = useState('');
-  
+
   const isNigeria = user.country === 'NG';
   const amount = isNigeria ? 5000 : 10;
   const currency = isNigeria ? 'NGN' : 'USD';
   const formattedAmount = isNigeria ? `₦${amount.toLocaleString()}` : `$${amount}`;
-  
+
   if (existingPayment) {
     return (
       <div className="container mx-auto max-w-lg px-4 py-16 text-center">
@@ -39,25 +38,25 @@ export function PaywallView({ user, existingPayment }: { user: User;existingPaym
       </div>
     );
   }
-  
-  async function handleUpload(e: React.ChangeEvent < HTMLInputElement > ) {
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setLoading(true);
     setError(null);
-    
+
     try {
       const sigRes = await fetch('/api/cloudinary/sign', { method: 'POST' });
       const sigData = await sigRes.json();
       if (!sigRes.ok) throw new Error('Upload failed');
-      
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('api_key', sigData.apiKey);
       formData.append('timestamp', sigData.timestamp.toString());
       formData.append('signature', sigData.signature);
       formData.append('folder', sigData.folder);
-      
+
       const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
         method: 'POST',
         body: formData,
@@ -72,13 +71,13 @@ export function PaywallView({ user, existingPayment }: { user: User;existingPaym
       setLoading(false);
     }
   }
-  
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!screenshot) return;
     setLoading(true);
     setError(null);
-    
+
     const result = await submitPaymentProof({
       reference: `${user.seller_code}-Y1`,
       amount,
@@ -86,7 +85,7 @@ export function PaywallView({ user, existingPayment }: { user: User;existingPaym
       screenshot_url: screenshot,
       claimed_ref: claimedRef,
     });
-    
+
     if (result.error) {
       setError(result.error);
       setLoading(false);
@@ -94,7 +93,7 @@ export function PaywallView({ user, existingPayment }: { user: User;existingPaym
       router.refresh();
     }
   }
-  
+
   return (
     <div className="container mx-auto max-w-lg px-4 py-12 relative">
       <Link 

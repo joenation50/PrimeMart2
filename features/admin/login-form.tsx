@@ -1,28 +1,27 @@
-// features/admin/login-form.tsx
 'use client';
 
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
 import { adminLogin } from '@/actions/admin';
 
-export function AdminLoginForm() {
+export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState < string | null > (null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     const result = await adminLogin(email, password);
     if (result?.error) {
       setError(result.error);
       setLoading(false);
     }
   }
-  
+
   return (
     <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-8 shadow-sm">
       <div className="mb-6 flex flex-col items-center">

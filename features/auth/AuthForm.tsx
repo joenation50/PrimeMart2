@@ -1,53 +1,51 @@
-// features/auth/AuthForm.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { createBrowserSupabase } from '@/lib/supabase';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Loader2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') ?? '/';
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [error, setError] = useState < string | null > (null);
-  
+  const [error, setError] = useState<string | null>(null);
+
   const supabase = createBrowserSupabase();
-  
+
   async function handlePasswordAuth(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
-    const { error } = mode === 'login' ?
-      await supabase.auth.signInWithPassword({ email, password }) :
-      await supabase.auth.signUp({ email, password });
-    
+
+    const { error } = mode === 'login'
+      ? await supabase.auth.signInWithPassword({ email, password })
+      : await supabase.auth.signUp({ email, password });
+
     if (error) {
       setError(error.message);
       setLoading(false);
       return;
     }
-    
+
     if (mode === 'signup') {
-      // If signup requires email confirmation, Supabase returns user but no session
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        setMagicLinkSent(true); // Reuse magic link screen for "check your email"
+        setMagicLinkSent(true);
         return;
       }
     }
-    
+
     router.push(next);
     router.refresh();
   }
-  
+
   async function handleMagicLink() {
     if (!email) {
       setError('Please enter your email first');
@@ -55,12 +53,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
     }
     setLoading(true);
     setError(null);
-    
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${next}` },
     });
-    
+
     if (error) {
       setError(error.message);
       setLoading(false);
@@ -69,7 +67,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       setLoading(false);
     }
   }
-  
+
   if (magicLinkSent) {
     return (
       <div className="w-full max-w-md rounded-2xl border border-border bg-background p-8 text-center shadow-sm">
@@ -86,7 +84,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       </div>
     );
   }
-  
+
   return (
     <div className="w-full max-w-md rounded-2xl border border-border bg-background p-8 shadow-sm">
       <div className="mb-6 text-center">
