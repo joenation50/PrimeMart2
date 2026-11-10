@@ -1,4 +1,3 @@
-// features/listing/detail.tsx
 'use client';
 
 import Image from 'next/image';
@@ -17,10 +16,14 @@ interface ListingDetailProps {
 export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) {
   const data = full || teaser;
   if (!data) return null;
+
+  // Cast to any to fix the TypeScript union error
+  const safeData = data as any;
   
-  const images = data.images.length > 0 ? data.images : ['placeholder'];
+  const images = safeData.images.length > 0 ? safeData.images : ['placeholder'];
   const primaryImage = images[0];
-  
+  const sellerName = full?.seller_profile?.business_name || teaser?.seller_name || 'Seller';
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8 pb-24 sm:pb-8">
       <div className="grid gap-8 md:grid-cols-2">
@@ -29,7 +32,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
           <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-muted">
             <Image
               src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_1200,q_auto,f_auto/${primaryImage}`}
-              alt={data.title}
+              alt={safeData.title}
               fill
               priority
               className="object-cover"
@@ -37,11 +40,11 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
           </div>
           {images.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {images.map((img, i) => (
+              {images.map((img: string, i: number) => (
                 <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                   <Image
                     src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_200,h_250,c_fill,q_auto,f_auto/${img}`}
-                    alt={`${data.title} ${i + 1}`}
+                    alt={`${safeData.title} ${i + 1}`}
                     fill
                     className="object-cover"
                   />
@@ -56,20 +59,20 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
           <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
             {full?.category && <span>{full.category.name}</span>}
             <span>·</span>
-            <span>Listed {timeAgo(data.created_at)}</span>
+            <span>Listed {timeAgo(safeData.created_at)}</span>
           </div>
 
-          <h1 className="text-2xl font-bold sm:text-3xl">{data.title}</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">{safeData.title}</h1>
           <p className="mt-2 text-3xl font-bold">
-            {data.price_negotiable ? <span className="text-muted-foreground text-xl">Negotiable</span> : formatPrice(data.price, data.currency)}
+            {safeData.price_negotiable ? <span className="text-muted-foreground text-xl">Negotiable</span> : formatPrice(safeData.price, safeData.currency)}
           </p>
 
           {/* Delivery & Location */}
           <div className="mt-6 space-y-3 rounded-xl border border-border p-4 text-sm">
-            {data.location && (
+            {safeData.location && (
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{data.location}</span>
+                <span>{safeData.location}</span>
               </div>
             )}
             {full?.seller_profile?.delivers_worldwide ? (
@@ -89,11 +92,11 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
           <div className="mt-6 rounded-xl border border-border p-4">
             <Link href={`/seller/${full?.seller_id || teaser?.id}`} className="flex items-center gap-3 transition hover:opacity-80">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-lg font-semibold">
-                {data.seller_name?.charAt(0) || 'S'}
+                {sellerName.charAt(0) || 'S'}
               </div>
               <div>
                 <p className="flex items-center gap-1 font-medium">
-                  {data.seller_name}
+                  {sellerName}
                   {(full?.seller?.verification_level === 'verified' || teaser?.seller_verified) && (
                     <ShieldCheck className="h-4 w-4 text-blue-500" />
                   )}
@@ -131,11 +134,11 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
           {/* WhatsApp Action */}
           <div className="mt-6 hidden sm:block">
             <ListingActions
-              listingId={data.id}
+              listingId={safeData.id}
               sellerPhone={full?.seller?.phone || null}
-              listingTitle={data.title}
-              price={data.price}
-              currency={data.currency}
+              listingTitle={safeData.title}
+              price={safeData.price}
+              currency={safeData.currency}
               isFavorited={full?.is_favorited || false}
               isLoggedIn={isLoggedIn}
             />
@@ -146,11 +149,11 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
       {/* Mobile Sticky Bottom Action */}
       <div className="sm:hidden">
         <ListingActions
-          listingId={data.id}
+          listingId={safeData.id}
           sellerPhone={full?.seller?.phone || null}
-          listingTitle={data.title}
-          price={data.price}
-          currency={data.currency}
+          listingTitle={safeData.title}
+          price={safeData.price}
+          currency={safeData.currency}
           isFavorited={full?.is_favorited || false}
           isLoggedIn={isLoggedIn}
         />
