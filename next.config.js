@@ -8,6 +8,10 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    // This forces all server components/actions to use the Edge runtime
+    runtime: 'edge', 
+  },
 };
 
 module.exports = nextConfig;
