@@ -1,4 +1,3 @@
-// features/auth/Step4Confirm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -12,12 +11,12 @@ export function Step4Confirm({
 }: {
   data: SignupData;
   onBack: () => void;
-  onSubmit: () => Promise < void > ;
+  onSubmit: () => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState < string | null > (null);
+  const [error, setError] = useState<string | null>(null);
   const isSelling = data.intent === 'sell';
-  
+
   async function handleSubmit() {
     setLoading(true);
     setError(null);
@@ -28,7 +27,7 @@ export function Step4Confirm({
       setLoading(false);
     }
   }
-  
+
   return (
     <div className="space-y-6">
       <div>

@@ -1,4 +1,3 @@
-// features/auth/Step1Country.tsx
 'use client';
 
 import { COUNTRIES } from '@/lib/constants';
@@ -11,7 +10,7 @@ export function Step1Country({
   onNext,
 }: {
   data: SignupData;
-  updateData: (d: Partial < SignupData > ) => void;
+  updateData: (d: Partial<SignupData>) => void;
   onNext: () => void;
 }) {
   return (

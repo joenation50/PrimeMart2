@@ -1,10 +1,7 @@
-// features/auth/Step3Profile.tsx
 'use client';
 
-import { useState } from 'react';
 import { NIGERIAN_STATES } from '@/lib/constants';
 import type { SignupData } from './SignupFlow';
-import { MapPin } from 'lucide-react';
 
 export function Step3Profile({
   data,
@@ -13,12 +10,12 @@ export function Step3Profile({
   onBack,
 }: {
   data: SignupData;
-  updateData: (d: Partial < SignupData > ) => void;
+  updateData: (d: Partial<SignupData>) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
   const isSelling = data.intent === 'sell';
-  
+
   return (
     <div className="space-y-4">
       <div>

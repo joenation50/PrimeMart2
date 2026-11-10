@@ -1,4 +1,3 @@
-// features/auth/SignupFlow.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,7 +5,7 @@ import { Step1Country } from './Step1Country';
 import { Step2Auth } from './Step2Auth';
 import { Step3Profile } from './Step3Profile';
 import { Step4Confirm } from './Step4Confirm';
-import { createBrowserSupabase } from '@/lib/supabase-browser'; // <-- FIXED IMPORT
+import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { useRouter } from 'next/navigation';
 
 export type SignupData = {
