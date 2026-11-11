@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { PlusCircle, AlertCircle, Lock, Eye, MessageCircle } from 'lucide-react';
+import { PlusCircle, AlertCircle, Lock, Eye, MessageCircle, TrendingUp } from 'lucide-react';
 import type { User, Listing } from '@/types';
 import { ListingRow } from './ListingRow';
 
@@ -18,13 +18,11 @@ export function DashboardView({ user, initialListings }: { user: User; initialLi
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      {/* Ambient background glows for the glass effect */}
       <div className="absolute top-0 left-1/4 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 h-[500px] w-[500px] translate-x-1/2 rounded-full bg-blue-500/10 blur-[120px] pointer-events-none" />
 
       <div className="container relative z-10 mx-auto max-w-6xl px-4 py-8 animate-fade-in">
         
-        {/* Header */}
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
@@ -44,7 +42,6 @@ export function DashboardView({ user, initialListings }: { user: User; initialLi
           </Link>
         </div>
 
-        {/* Alert Banners */}
         {isLocked && (
           <div className="mb-8 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-6 text-blue-500 backdrop-blur-sm">
             <div className="flex items-center gap-2 text-lg font-semibold">
@@ -52,31 +49,32 @@ export function DashboardView({ user, initialListings }: { user: User; initialLi
               Account Inactive
             </div>
             <p className="mt-2 text-sm opacity-90">
-              You need an active subscription to publish listings. You can browse the marketplace, but you cannot sell until your payment is confirmed.
+              You need an active subscription to publish listings.
             </p>
-            <Link 
-              href="/paywall" 
-              className="mt-4 inline-flex items-center justify-center rounded-full bg-blue-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-600"
-            >
+            <Link href="/paywall" className="mt-4 inline-flex items-center justify-center rounded-full bg-blue-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-600">
               Pay Subscription
             </Link>
           </div>
         )}
 
-        {/* Glass Stats Cards */}
         <div className={`grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8 ${isLocked ? 'opacity-50 pointer-events-none' : ''}`}>
-          <div className="glass-card rounded-2xl p-6">
+          <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <p className="text-sm font-medium text-muted-foreground">Active Listings</p>
             <p className="mt-2 text-4xl font-bold text-foreground">{listings.filter(l => l.status === 'active').length}</p>
           </div>
-          <div className="glass-card rounded-2xl p-6">
+          
+          <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <p className="text-sm font-medium text-muted-foreground">Total Views</p>
             <div className="mt-2 flex items-baseline gap-2">
               <p className="text-4xl font-bold text-foreground">{totalViews}</p>
               <Eye className="h-5 w-5 text-muted-foreground" />
             </div>
           </div>
-          <div className="glass-card rounded-2xl p-6">
+
+          <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <p className="text-sm font-medium text-muted-foreground">WhatsApp Clicks</p>
             <div className="mt-2 flex items-baseline gap-2">
               <p className="text-4xl font-bold text-primary">{totalClicks}</p>
@@ -85,15 +83,18 @@ export function DashboardView({ user, initialListings }: { user: User; initialLi
           </div>
         </div>
 
-        {/* Listings List wrapped in glass */}
         <div className={`glass-card rounded-2xl overflow-hidden ${isLocked ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="border-b border-border px-6 py-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Your Listings</h2>
-            {isLocked && <span className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span>}
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" /> Your Listings
+            </h2>
           </div>
           
           {listings.length === 0 ? (
-            <div className="py-16 text-center">
+            <div className="py-16 text-center animate-fade-in">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
+                <PlusCircle className="h-8 w-8 text-muted-foreground" />
+              </div>
               <p className="text-lg font-medium text-foreground">No listings yet</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {isLocked ? 'Pay your subscription to unlock publishing.' : 'Add your first item to start selling.'}
@@ -101,13 +102,18 @@ export function DashboardView({ user, initialListings }: { user: User; initialLi
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {listings.map((listing) => (
-                <ListingRow key={listing.id} listing={listing} />
+              {listings.map((listing, index) => (
+                <div 
+                  key={listing.id} 
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
+                >
+                  <ListingRow listing={listing} />
+                </div>
               ))}
             </div>
           )}
         </div>
-        
       </div>
     </div>
   );
