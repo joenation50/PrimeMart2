@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get('next') ?? '/';
+  const next = searchParams.get('next') ?? '/dashboard'; // Default to dashboard after login
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,14 +70,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
 
   if (magicLinkSent) {
     return (
-      <div className="w-full max-w-md rounded-2xl border border-border bg-background p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-bold">Check your inbox</h1>
+      <div className="w-full rounded-2xl bg-transparent p-8 text-center">
+        <h1 className="text-2xl font-bold text-foreground">Check your inbox</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           We sent a secure login link to <strong>{email}</strong>. Click the link to continue.
         </p>
         <button
           onClick={() => setMagicLinkSent(false)}
-          className="mt-6 text-sm font-medium underline underline-offset-4"
+          className="mt-6 text-sm font-medium text-primary underline underline-offset-4"
         >
           Use a different email
         </button>
@@ -86,9 +86,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   }
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-border bg-background p-8 shadow-sm">
-      <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold">
+    <div className="w-full rounded-2xl bg-transparent p-8">
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-bold text-foreground">
           {mode === 'login' ? 'Welcome back' : 'Create an account'}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -97,32 +97,32 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+        <div className="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
           {error}
         </div>
       )}
 
-      <form onSubmit={handlePasswordAuth} className="space-y-4">
+      <form onSubmit={handlePasswordAuth} className="space-y-5">
         <div>
-          <label className="mb-1 block text-sm font-medium">Email</label>
+          <label className="mb-2 block text-sm font-medium text-foreground">Email</label>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-foreground"
+            className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
             placeholder="you@example.com"
           />
         </div>
         
         <div>
-          <label className="mb-1 block text-sm font-medium">Password</label>
+          <label className="mb-2 block text-sm font-medium text-foreground">Password</label>
           <input
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-foreground"
+            className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
             placeholder="••••••••"
           />
         </div>
@@ -130,9 +130,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center rounded-lg bg-foreground py-2.5 text-sm font-medium text-background disabled:opacity-50"
+          className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
       </form>
 
@@ -146,16 +146,16 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         type="button"
         onClick={handleMagicLink}
         disabled={loading || !email}
-        className="w-full rounded-lg border border-border py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-50"
+        className="w-full rounded-xl border border-border py-3.5 text-sm font-medium text-foreground transition hover:bg-secondary disabled:opacity-50"
       >
         Email me a login link
       </button>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-8 text-center text-sm text-muted-foreground">
         {mode === 'login' ? (
-          <>Don&apos;t have an account? <Link href="/signup" className="font-medium text-foreground hover:underline">Sign up</Link></>
+          <>Don&apos;t have an account? <Link href="/signup" className="font-semibold text-primary hover:underline">Sign up</Link></>
         ) : (
-          <>Already have an account? <Link href="/login" className="font-medium text-foreground hover:underline">Sign in</Link></>
+          <>Already have an account? <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link></>
         )}
       </p>
     </div>

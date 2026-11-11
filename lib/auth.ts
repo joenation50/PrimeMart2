@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
-import { cache } from 'react';
 import { createServerSupabase } from './supabase';
 import { env } from './env';
 import type { User } from '@/types';
 
-export const getSession = cache(async () => {
+// Removed the React 'cache()' wrapper to ensure we always get the freshest role from the DB
+export async function getSession() {
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -17,7 +17,7 @@ export const getSession = cache(async () => {
 
   if (!profile) return null;
   return { auth: user, profile: profile as User };
-});
+}
 
 export async function requireAuth() {
   const session = await getSession();
@@ -34,7 +34,9 @@ export async function requireSeller() {
 
 export async function requireAdmin() {
   const session = await getSession();
-  if (!session || session.profile.role !== 'admin') redirect('/admin/login');
+  if (!session || session.profile.role !== 'admin') {
+    redirect('/admin/login');
+  }
   return session;
 }
 
@@ -42,10 +44,12 @@ export async function verifyAdminCredentials(
   email: string,
   password: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // 1. Verify email matches the ENV variable
   if (email.toLowerCase() !== env.adminEmail.toLowerCase()) {
     return { ok: false, error: 'Invalid credentials' };
   }
 
+  // 2. Authenticate with Supabase
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   
@@ -53,16 +57,39 @@ export async function verifyAdminCredentials(
     return { ok: false, error: 'Invalid credentials' };
   }
 
-  const { data: profile } = await supabase
+  // 3. Fetch the exact role from the database
+  const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('role')
     .eq('id', data.user.id)
     .single();
 
-  if (profile?.role !== 'admin') {
+  // 4. Debug log (Check your Vercel function logs if this fails)
+  console.log("ADMIN LOGIN CHECK -> User ID:", data.user.id, "| Role in DB:", profile?.role, "| DB Error:", profileError);
+
+  // 5. Strict check
+  if (!profile || profile.role !== 'admin') {
     await supabase.auth.signOut();
     return { ok: false, error: 'Not an admin account' };
   }
 
   return { ok: true };
+}
+
+export async function isAdmin(): Promise<boolean> {
+  const session = await getSession();
+  return session?.profile.role === 'admin';
+}
+
+export async function isSeller(): Promise<boolean> {
+  const session = await getSession();
+  return session?.profile.role === 'seller';
+}
+
+export async function isActiveSeller(): Promise<boolean> {
+  const session = await getSession();
+  return (
+    session?.profile.role === 'seller' &&
+    session.profile.seller_status === 'active'
+  );
 }
