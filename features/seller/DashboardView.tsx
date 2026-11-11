@@ -1,3 +1,4 @@
+// features/seller/DashboardView.tsx
 'use client';
 
 import { useState } from 'react';

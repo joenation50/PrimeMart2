@@ -1,3 +1,4 @@
+// features/admin/login-form.tsx
 'use client';
 
 import { useState } from 'react';
@@ -23,27 +24,45 @@ export function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-8 shadow-sm">
-      <div className="mb-6 flex flex-col items-center">
-        <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-foreground">
-          <Lock className="h-6 w-6 text-background" />
+    <div className="w-full text-foreground">
+      <div className="mb-8 flex flex-col items-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+          <Lock className="h-7 w-7" />
         </div>
-        <h1 className="text-xl font-bold">Admin Access</h1>
+        <h1 className="text-2xl font-bold">Admin Access</h1>
         <p className="text-sm text-muted-foreground">PrimeMart Control Center</p>
       </div>
 
-      {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">{error}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Admin Email</label>
-          <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-foreground" />
+          <label className="mb-2 block text-sm font-medium">Admin Email</label>
+          <input 
+            type="email" 
+            required 
+            value={email} 
+            onChange={e => setEmail(e.target.value)} 
+            className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary" 
+            placeholder="admin@primemart.com"
+          />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Password</label>
-          <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-foreground" />
+          <label className="mb-2 block text-sm font-medium">Password</label>
+          <input 
+            type="password" 
+            required 
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary" 
+            placeholder="••••••••"
+          />
         </div>
-        <button type="submit" disabled={loading} className="w-full rounded-lg bg-foreground py-2.5 text-sm font-medium text-background disabled:opacity-50">
+        <button 
+          type="submit" 
+          disabled={loading} 
+          className="mt-2 w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20"
+        >
           {loading ? 'Authenticating...' : 'Sign In'}
         </button>
       </form>

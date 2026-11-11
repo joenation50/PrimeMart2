@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { LayoutDashboard, Users, Settings, FileText, AlertTriangle } from 'lucide-react';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  // This ensures only admins can see this layout
+  // This securely checks the session and redirects if not admin
   await requireAdmin();
-  
+
   const navItems = [
     { href: '/admin', label: 'Approval Queue', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Users & Sellers', icon: Users },
@@ -14,23 +14,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/content', label: 'Content', icon: FileText },
     { href: '/admin/system', label: 'System Settings', icon: Settings },
   ];
-  
+
   return (
-    <div className="flex min-h-screen bg-muted/20">
-      <aside className="w-64 border-r border-border bg-background p-4">
-        <div className="mb-8 px-4">
-          <h2 className="text-lg font-bold">PrimeMart Admin</h2>
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="w-64 border-r border-border glass-card p-4 hidden md:block">
+        <div className="mb-8 px-4 pt-4">
+          <h2 className="text-lg font-bold tracking-tight">PrimeMart Admin</h2>
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-2">
           {navItems.map(item => (
-            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
               <item.icon className="h-4 w-4" />
               {item.label}
             </Link>
           ))}
         </nav>
       </aside>
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 md:p-8">
         {children}
       </main>
     </div>
