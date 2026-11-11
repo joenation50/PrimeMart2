@@ -57,15 +57,15 @@ export async function verifyAdminCredentials(
     return { ok: false, error: 'Invalid credentials' };
   }
 
-  // 3. Fetch the exact role from the database
+  // 3. Fetch the role using the EMAIL, not the ID (Fixes the mismatch bug)
   const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('role')
-    .eq('id', data.user.id)
+    .eq('email', email)
     .single();
 
   // 4. Debug log (Check your Vercel function logs if this fails)
-  console.log("ADMIN LOGIN CHECK -> User ID:", data.user.id, "| Role in DB:", profile?.role, "| DB Error:", profileError);
+  console.log("ADMIN CHECK -> Email:", email, "| Role in DB:", profile?.role, "| DB Error:", profileError);
 
   // 5. Strict check
   if (!profile || profile.role !== 'admin') {

@@ -1,16 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Loader2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get('next') ?? '/dashboard'; // Default to dashboard after login
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,7 +39,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       }
     }
 
-    router.push(next);
+    // FORCE REDIRECT TO DASHBOARD
+    router.push('/dashboard');
     router.refresh();
   }
 
@@ -56,7 +54,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${next}` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard` },
     });
 
     if (error) {
