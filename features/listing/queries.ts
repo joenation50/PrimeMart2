@@ -1,4 +1,3 @@
-// features/listing/queries.ts
 import { createServerSupabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 import type { FullListing, TeaserListing } from './types';
@@ -12,23 +11,20 @@ export async function getListingData(id: string): Promise<{
   const supabase = await createServerSupabase();
   const session = await getSession();
 
-  // 1. Fetch base data with seller profile (INCLUDING PHONE)
   const { data: listing } = await supabase
     .from('listings')
     .select(`
       *,
       seller:seller_id(id, name, phone, rating_avg, rating_count, verification_level, last_active_at),
-      seller_profile:seller_id(business_name, avatar_url, based_city, based_region, delivers_to_countries, delivers_to_regions, delivers_worldwide, pickup_available),
+      seller_profile:seller_id(business_name, avatar_url, based_city, based_region),
       category:category_id(name, slug)
     `)
     .eq('id', id)
     .eq('status', 'active')
-    .eq('image_moderation_status', 'approved')
     .single();
 
   if (!listing) return { full: null, teaser: null, isLoggedIn: !!session, isFavorited: false };
 
-  // 2. Build Teaser (safe for logged-out users)
   const sellerProfile = Array.isArray(listing.seller_profile) ? listing.seller_profile[0] : listing.seller_profile;
   const seller = Array.isArray(listing.seller) ? listing.seller[0] : listing.seller;
 
@@ -46,12 +42,10 @@ export async function getListingData(id: string): Promise<{
     created_at: listing.created_at,
   };
 
-  // 3. If not logged in, return ONLY the teaser. No phone number, no description.
   if (!session) {
     return { full: null, teaser, isLoggedIn: false, isFavorited: false };
   }
 
-  // 4. Logged in: Check if favorited
   const { data: fav } = await supabase
     .from('favorites')
     .select('id')
@@ -59,7 +53,6 @@ export async function getListingData(id: string): Promise<{
     .eq('listing_id', id)
     .maybeSingle();
 
-  // 5. Logged in: Fetch recent reviews (max 3)
   const { data: reviews } = await supabase
     .from('reviews')
     .select('*, buyer:buyer_id(id, name)')
@@ -68,7 +61,6 @@ export async function getListingData(id: string): Promise<{
     .order('created_at', { ascending: false })
     .limit(3);
 
-  // 6. Build full object (now safe to include description and phone)
   const full: FullListing = {
     ...listing,
     seller: seller,

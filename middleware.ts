@@ -1,10 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase';
 
+const protectedRoutes = ['/marketplace', '/dashboard', '/admin', '/account', '/favorites'];
+
 export async function middleware(request: NextRequest) {
-  // We only use the middleware to refresh the Supabase session.
-  // We removed the manual cookie check because it was causing redirect loops on Vercel.
-  return await updateSession(request, NextResponse.next({ request }));
+  const { pathname } = request.nextUrl;
+  const response = await updateSession(request, NextResponse.next({ request }));
+
+  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
+
+  if (isProtected) {
+    const hasSession = request.cookies.getAll().some((c) => c.name.startsWith('sb-') && c.name.includes('-auth-token'));
+    
+    if (!hasSession) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('next', pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  return response;
 }
 
 export const config = {
