@@ -1,12 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase';
 
-const protectedRoutes = ['/marketplace', '/dashboard', '/admin', '/account', '/favorites'];
+const protectedRoutes = ['/dashboard', '/admin', '/account', '/favorites'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  
+  // Always refresh the session first
   const response = await updateSession(request, NextResponse.next({ request }));
 
+  // Only check auth for specific protected routes
   const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
 
   if (isProtected) {

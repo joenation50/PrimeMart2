@@ -1,27 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Loader2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get('next') ?? '/dashboard';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const supabase = createBrowserSupabase();
 
-  async function handlePasswordAuth(e: React.FormEvent) {
+  async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = mode === 'login'
+    const { data, error } = mode === 'login'
       ? await supabase.auth.signInWithPassword({ email, password })
       : await supabase.auth.signUp({ email, password });
 
@@ -31,56 +33,25 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       return;
     }
 
-    if (mode === 'signup') {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        setMagicLinkSent(true);
-        return;
-      }
+    if (mode === 'signup' && data.user) {
+      // Create the user profile immediately after signup
+      await supabase.from('users').insert({
+        id: data.user.id,
+        name: email.split('@')[0],
+        email: email,
+        role: 'buyer',
+        seller_code: `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+        country: 'NG',
+        country_locked: false,
+        timezone: 'Africa/Lagos',
+        auth_method: 'email',
+        account_status: 'active',
+        verification_level: 'none'
+      });
     }
 
-    // FORCE REDIRECT TO DASHBOARD
-    router.push('/dashboard');
-    router.refresh();
-  }
-
-  async function handleMagicLink() {
-    if (!email) {
-      setError('Please enter your email first');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard` },
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      setMagicLinkSent(true);
-      setLoading(false);
-    }
-  }
-
-  if (magicLinkSent) {
-    return (
-      <div className="w-full rounded-2xl bg-transparent p-8 text-center">
-        <h1 className="text-2xl font-bold text-foreground">Check your inbox</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          We sent a secure login link to <strong>{email}</strong>. Click the link to continue.
-        </p>
-        <button
-          onClick={() => setMagicLinkSent(false)}
-          className="mt-6 text-sm font-medium text-primary underline underline-offset-4"
-        >
-          Use a different email
-        </button>
-      </div>
-    );
+    // Force a hard redirect to ensure the cookie is read
+    window.location.href = next;
   }
 
   return (
@@ -100,7 +71,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         </div>
       )}
 
-      <form onSubmit={handlePasswordAuth} className="space-y-5">
+      <form onSubmit={handleAuth} className="space-y-5">
         <div>
           <label className="mb-2 block text-sm font-medium text-foreground">Email</label>
           <input
@@ -133,21 +104,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
       </form>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-xs text-muted-foreground">or</span>
-        <div className="h-px flex-1 bg-border" />
-      </div>
-
-      <button
-        type="button"
-        onClick={handleMagicLink}
-        disabled={loading || !email}
-        className="w-full rounded-xl border border-border py-3.5 text-sm font-medium text-foreground transition hover:bg-secondary disabled:opacity-50"
-      >
-        Email me a login link
-      </button>
 
       <p className="mt-8 text-center text-sm text-muted-foreground">
         {mode === 'login' ? (
