@@ -66,21 +66,3 @@ export async function verifyAdminCredentials(
 
   return { ok: true };
 }
-
-export async function isAdmin(): Promise<boolean> {
-  const session = await getSession();
-  return session?.profile.role === 'admin';
-}
-
-export async function isSeller(): Promise<boolean> {
-  const session = await getSession();
-  return session?.profile.role === 'seller';
-}
-
-export async function isActiveSeller(): Promise<boolean> {
-  const session = await getSession();
-  return (
-    session?.profile.role === 'seller' &&
-    session.profile.seller_status === 'active'
-  );
-}

@@ -1,10 +1,19 @@
 // app/admin/layout.tsx
 import { requireAdmin } from '@/lib/auth';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { LayoutDashboard, Users, Settings, FileText, AlertTriangle } from 'lucide-react';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  // This securely checks the session and redirects if not admin
+  const headersList = headers();
+  const pathname = headersList.get('x-pathname') || '';
+
+  // 1. If we are on the login page, just render the page without the sidebar or auth check
+  if (pathname === '/admin/login') {
+    return <div className="min-h-screen bg-background">{children}</div>;
+  }
+
+  // 2. For all other admin pages, require auth and show the sidebar
   await requireAdmin();
 
   const navItems = [

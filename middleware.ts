@@ -1,44 +1,29 @@
 // middleware.ts
-// Route gate + session refresh. Runs on every request.
-
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase';
 
 const publicRoutes = [
-  '/',
-  '/login',
-  '/signup',
-  '/password-reset',
-  '/auth/callback',
-  '/terms',
-  '/privacy',
-  '/about',
-  '/maintenance',
-  '/admin/login',
+  '/', '/login', '/signup', '/password-reset', '/auth/callback',
+  '/terms', '/privacy', '/about', '/maintenance', '/admin/login',
 ];
 
-const publicPrefixes = [
-  '/listing/',
-  '/seller/',
-  '/verified-sellers',
-];
-
-const protectedPrefixes = [
-  '/account',
-  '/favorites',
-  '/notifications',
-  '/dashboard',
-  '/listings',
-  '/paywall',
-  '/renew',
-];
-
+const publicPrefixes = ['/listing/', '/seller/', '/verified-sellers'];
+const protectedPrefixes = ['/account', '/favorites', '/notifications', '/dashboard', '/listings', '/paywall', '/renew'];
 const adminPrefixes = ['/admin'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  const response = NextResponse.next({ request });
+  // Create new headers to pass the pathname down
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
   const refreshed = await updateSession(request, response);
   
   const isPublicExact = publicRoutes.includes(pathname);
