@@ -12,12 +12,13 @@ export default function PublicStorePage({ params }: { params: Promise<{ slug: st
   const [loading, setLoading] = useState(true);
   const [storeOwner, setStoreOwner] = useState<any>(null);
   const [listings, setListings] = useState<any[]>([]);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     async function fetchStore() {
       const supabase = createBrowserSupabase();
 
-      // Look up by the new store_slug, OR the old seller_code (as a fallback)
+      // 1. Fetch the seller
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('id, name, store_slug, seller_code, verification_level, seller_profiles(business_name)')
@@ -25,20 +26,24 @@ export default function PublicStorePage({ params }: { params: Promise<{ slug: st
         .single();
 
       if (userError || !user) {
+        console.error("Store fetch error:", userError);
+        setErrorMsg(userError?.message || 'Store not found');
         setLoading(false);
         return;
       }
 
       setStoreOwner(user);
 
-      const { data: storeListings } = await supabase
+      // 2. Fetch the listings
+      const { data: storeListings, error: listError } = await supabase
         .from('listings')
         .select('*')
         .eq('seller_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (storeListings) setListings(storeListings);
+      if (listError) console.error("Listings fetch error:", listError);
+      setListings(storeListings || []);
       setLoading(false);
     }
 
@@ -46,19 +51,15 @@ export default function PublicStorePage({ params }: { params: Promise<{ slug: st
   }, [slug]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  if (!storeOwner) {
+  if (errorMsg || !storeOwner) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center bg-background px-4 text-center">
         <StoreIcon className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
         <h1 className="text-2xl font-bold text-foreground mb-2">Store Not Found</h1>
-        <p className="text-muted-foreground">The store "{slug}" does not exist.</p>
+        <p className="text-muted-foreground">{errorMsg || `The store "${slug}" does not exist.`}</p>
       </div>
     );
   }
