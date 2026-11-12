@@ -35,7 +35,8 @@ export default function PublicListingPage() {
 
       const { data } = await supabase
         .from('listings')
-        .select(`*, users(name, phone, verification_level, rating_avg, rating_count), seller_profiles(business_name, based_city)`)
+        // Added logo_url to seller_profiles query
+        .select(`*, users(name, phone, verification_level, rating_avg, rating_count), seller_profiles(business_name, based_city, logo_url)`)
         .eq('id', params.id)
         .single();
       
@@ -97,8 +98,6 @@ export default function PublicListingPage() {
   }
 
   function handleReport() {
-    // Redirects to a report page or opens a modal. 
-    // Replace with your actual report logic
     router.push(`/report?type=listing&id=${listing.id}`);
   }
 
@@ -106,15 +105,19 @@ export default function PublicListingPage() {
   if (!listing) return <div className="text-center py-20 text-foreground">Listing not found.</div>;
 
   const sellerName = listing.seller_profiles?.business_name || listing.users?.name || 'Seller';
+  const sellerLogo = listing.seller_profiles?.logo_url;
   const isVerified = listing.users?.verification_level === 'verified';
   
-  // SAFE WHATSAPP LINK: Only generate if phone number exists
+  // SAFE WHATSAPP LINK
   const whatsappLink = listing.users?.phone 
     ? `https://wa.me/${listing.users.phone.replace(/\D/g, '')}?text=Hi, I saw your listing '${listing.title}' on PrimeMart. Is it still available?`
     : null;
   
+  // Since we now save full URLs to the database, we can use them directly.
   const images = listing.images || [];
-  const primaryImage = images.length > 0 ? `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_1200,q_auto,f_auto/${images[activeImage]}` : "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop";
+  const primaryImage = images.length > 0 
+    ? images[activeImage] 
+    : "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop";
 
   return (
     <div className="min-h-screen bg-background pb-32 md:pb-8">
@@ -134,7 +137,7 @@ export default function PublicListingPage() {
               <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">
                 {images.map((img: string, i: number) => (
                   <button key={i} onClick={() => setActiveImage(i)} className={cn("relative h-16 w-16 shrink-0 rounded-lg overflow-hidden border-2", activeImage === i ? "border-primary" : "border-transparent")}>
-                    <Image src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_100,h_100,c_fill/${img}`} alt={`View ${i+1}`} fill className="object-cover" />
+                    <Image src={img} alt={`View ${i+1}`} fill className="object-cover" />
                   </button>
                 ))}
               </div>
@@ -149,10 +152,16 @@ export default function PublicListingPage() {
             <h1 className="text-3xl font-bold text-foreground mb-2">{listing.title}</h1>
             <p className="text-3xl font-bold text-primary mb-6">{listing.price_negotiable ? 'Negotiable' : formatPrice(listing.price, listing.currency)}</p>
 
-            {/* SELLER BLOCK */}
+            {/* SELLER BLOCK WITH LOGO */}
             <div className="glass-card rounded-2xl p-4 flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-lg font-bold">{sellerName.charAt(0)}</div>
+                <div className="relative h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-lg font-bold overflow-hidden shrink-0">
+                  {sellerLogo ? (
+                    <Image src={sellerLogo} alt={sellerName} fill className="object-cover" />
+                  ) : (
+                    sellerName.charAt(0).toUpperCase()
+                  )}
+                </div>
                 <div>
                   <p className="font-semibold flex items-center gap-1">{sellerName} {isVerified && <ShieldCheck className="h-4 w-4 text-primary" />}</p>
                   <p className="text-sm text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {listing.seller_profiles?.based_city || listing.location || 'Nigeria'}</p>
