@@ -12,10 +12,8 @@ export async function loginAction(formData: FormData) {
 
   if (error) return { error: error.message };
   
-  // Fetch role to know where to send them
   const { data: profile } = await supabase.from('users').select('role').eq('id', data.user.id).single();
   
-  // HARD REDIRECTS
   if (profile?.role === 'admin') redirect('/admin');
   if (profile?.role === 'seller') redirect('/dashboard');
   redirect('/buyer');
