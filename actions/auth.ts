@@ -29,10 +29,9 @@ export async function signupAction(formData: FormData) {
   if (error) return { error: error.message };
 
   if (data.user) {
-    // USE ADMIN CLIENT TO BYPASS RLS
     const adminSupabase = createAdminSupabase();
     
-    await adminSupabase.from('users').insert({
+    await adminSupabase.from('users').upsert({
       id: data.user.id,
       name: name || email.split('@')[0],
       email: email,
@@ -45,19 +44,24 @@ export async function signupAction(formData: FormData) {
       auth_method: 'email',
       account_status: 'active',
       verification_level: 'none'
-    });
+    }, { onConflict: 'id' });
 
     if (intent === 'sell') {
-      await adminSupabase.from('seller_profiles').insert({
+      await adminSupabase.from('seller_profiles').upsert({
         user_id: data.user.id,
         real_name: name,
         business_name: formData.get('business_name') as string || 'My Store',
         based_country: 'NG',
         based_city: formData.get('city') as string || 'Lagos',
-      });
-      redirect('/paywall');
+      }, { onConflict: 'user_id' });
     }
   }
 
-  redirect('/auth/redirect');
+  // If Supabase didn't give a session, it means "Confirm Email" is ON.
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    return { error: "Please go to Supabase -> Authentication -> Providers -> Email and turn OFF 'Confirm email'." };
+  }
+
+  redirect(intent === 'sell' ? '/paywall' : '/auth/redirect');
 }

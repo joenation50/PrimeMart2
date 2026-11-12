@@ -2,32 +2,30 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  const { pathname } = request.nextUrl;
+  
+  // This line fixes the Admin infinite loop
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', pathname)
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
+        getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          // Update request cookies for Server Components
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          // Re-create response to pass updated cookies to the browser
-          response = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
+          response = NextResponse.next({ request: { headers: requestHeaders } })
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
         },
       },
     }
   )
 
-  // IMPORTANT: Must be getUser() to validate the token with Supabase servers
   await supabase.auth.getUser()
-
   return response
 }
 
