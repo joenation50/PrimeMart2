@@ -1,3 +1,9 @@
+import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import type { NextRequest, NextResponse } from 'next/server';
+
+// 1. SERVER CLIENT (For logged-in users)
 export async function createServerSupabase() {
   const cookieStore = await cookies();
   return createServerClient(
@@ -16,7 +22,19 @@ export async function createServerSupabase() {
   );
 }
 
-export async function updateSession(request: NextRequest, response: NextResponse) {
+// 2. ADMIN CLIENT (Bypasses security for admin actions)
+export function createAdminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+    }
+  );
+}
+
+// 3. MIDDLEWARE HELPER (Refreshes session cookies)
+export async function updateSession(request: NextRequest, response: NextResponse): Promise<NextResponse> {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
