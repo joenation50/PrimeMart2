@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Users, Settings, FileText, AlertTriangle, 
-  Loader2, ArrowLeft, LogOut, ShieldCheck, Menu, X, BarChart, Store, ShoppingBag
+  Loader2, ArrowLeft, LogOut, ShieldCheck, Menu, X, BarChart, Store, ShoppingBag, PlusCircle
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 
@@ -20,7 +20,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     async function checkAdmin() {
       const supabase = createBrowserSupabase();
       const { data: { user } } = await supabase.auth.getUser();
-
       if (!user || user.email !== ADMIN_EMAIL) {
         window.location.href = '/admin/login';
         return;
@@ -53,15 +52,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  const navItems = [
+  const platformLinks = [
     { href: '/admin', label: 'Approval Queue', icon: LayoutDashboard },
-    { href: '/admin/analytics', label: 'Analytics', icon: BarChart },
+    { href: '/admin/analytics', label: 'Platform Analytics', icon: BarChart },
     { href: '/admin/users', label: 'Users & Sellers', icon: Users },
-    { href: '/admin/listings', label: 'All Listings', icon: ShoppingBag }, // NEW
+    { href: '/admin/listings', label: 'All Listings', icon: ShoppingBag },
     { href: '/admin/moderation', label: 'Moderation', icon: AlertTriangle },
     { href: '/admin/content', label: 'Content', icon: FileText },
     { href: '/admin/system', label: 'System Settings', icon: Settings },
-    { href: '/admin/profile', label: 'My Store Profile', icon: Store }, // NEW
+  ];
+
+  const storeLinks = [
+    { href: '/admin/store', label: 'Store Dashboard', icon: Store },
+    { href: '/admin/store/listings/new', label: 'Add New Product', icon: PlusCircle },
+    { href: '/admin/store/analytics', label: 'Store Analytics', icon: BarChart },
+    { href: '/admin/store/settings', label: 'Store Settings', icon: Settings },
   ];
 
   return (
@@ -81,20 +86,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* MOBILE DRAWER */}
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-background pt-16 overflow-y-auto pb-24">
-          <nav className="p-4 space-y-2">
-            {navItems.map(item => (
-              <Link 
-                key={item.href} 
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 font-medium ${
-                  pathname === item.href ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
-                }`}
-              >
-                <item.icon className="h-5 w-5" /> {item.label}
-              </Link>
-            ))}
-            <div className="pt-4 border-t border-border mt-4 space-y-2">
+          <nav className="p-4 space-y-6">
+            <div>
+              <p className="px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Platform Admin</p>
+              {platformLinks.map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-4 py-3 font-medium ${pathname === item.href ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                  <item.icon className="h-5 w-5" /> {item.label}
+                </Link>
+              ))}
+            </div>
+            <div>
+              <p className="px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">My Store (Seller Tools)</p>
+              {storeLinks.map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-4 py-3 font-medium ${pathname === item.href ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                  <item.icon className="h-5 w-5" /> {item.label}
+                </Link>
+              ))}
+            </div>
+            <div className="pt-4 border-t border-border space-y-2">
               <Link href="/marketplace" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary">
                 <ArrowLeft className="h-5 w-5" /> Back to Marketplace
               </Link>
@@ -116,26 +125,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <p className="text-xs text-muted-foreground truncate">{ADMIN_EMAIL}</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {navItems.map(item => {
-            const isActive = pathname === item.href;
-            return (
-              <Link 
-                key={item.href} 
-                href={item.href} 
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+          <div>
+            <p className="px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Platform Admin</p>
+            <div className="space-y-1">
+              {platformLinks.map(item => (
+                <Link key={item.href} href={item.href} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${pathname === item.href ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary'}`}>
+                  <item.icon className="h-4 w-4" /> {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">My Store (Seller Tools)</p>
+            <div className="space-y-1">
+              {storeLinks.map(item => (
+                <Link key={item.href} href={item.href} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${pathname === item.href ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary'}`}>
+                  <item.icon className="h-4 w-4" /> {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </nav>
 
         <div className="p-4 border-t border-border space-y-2">
-          <Link href="/marketplace" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+          <Link href="/marketplace" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to Store
           </Link>
           <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors">
