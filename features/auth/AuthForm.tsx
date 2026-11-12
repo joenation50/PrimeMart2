@@ -1,26 +1,63 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { loginAction, signupAction } from '@/actions/auth';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Loader2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
-  const [isPending, startTransition] = useTransition();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
     setError(null);
-    
-    startTransition(async () => {
-      const result = mode === 'login' 
-        ? await loginAction(formData) 
-        : await signupAction(formData);
 
-      if (result?.error) {
-        setError(result.error);
+    const supabase = createBrowserSupabase();
+    
+    if (mode === 'login') {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
       }
-    });
+      
+      // Check role in the browser, then hard redirect
+      const { data: profile } = await supabase.from('users').select('role').eq('id', data.user.id).single();
+      
+      if (profile?.role === 'admin') window.location.href = '/admin';
+      else if (profile?.role === 'seller') window.location.href = '/dashboard';
+      else window.location.href = '/buyer';
+
+    } else {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        await supabase.from('users').upsert({
+          id: data.user.id,
+          name: email.split('@')[0],
+          email: email,
+          role: 'buyer',
+          seller_code: `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          country: 'NG',
+          country_locked: false,
+          timezone: 'Africa/Lagos',
+          auth_method: 'email',
+          account_status: 'active',
+          verification_level: 'none'
+        }, { onConflict: 'id' });
+      }
+      window.location.href = '/buyer';
+    }
   }
 
   return (
@@ -40,13 +77,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         </div>
       )}
 
-      <form action={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className="mb-2 block text-sm font-medium text-foreground">Email</label>
           <input
             type="email"
-            name="email"
             required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
             placeholder="you@example.com"
           />
@@ -56,8 +94,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           <label className="mb-2 block text-sm font-medium text-foreground">Password</label>
           <input
             type="password"
-            name="password"
             required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
             placeholder="••••••••"
           />
@@ -65,10 +104,10 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
 
         <button
           type="submit"
-          disabled={isPending}
+          disabled={loading}
           className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-50"
         >
-          {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
       </form>
 

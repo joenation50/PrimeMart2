@@ -1,22 +1,60 @@
-import { requireAuth } from '@/lib/auth';
-import { createServerSupabase } from '@/lib/supabase';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { DashboardView } from '@/features/seller/DashboardView';
-import { redirect } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
-export default async function DashboardPage() {
-  const session = await requireAuth();
-  const { profile } = session;
+export default function DashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
+  const [listings, setListings] = useState<any[]>([]);
 
-  if (profile.role === 'buyer') redirect('/buyer');
-  if (profile.seller_status === 'unpaid' || profile.seller_status === 'pending') redirect('/paywall');
+  useEffect(() => {
+    async function loadDashboard() {
+      const supabase = createBrowserSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
 
-  const supabase = await createServerSupabase();
-  const { data: listings } = await supabase
-    .from('listings')
-    .select('*')
-    .eq('seller_id', profile.id)
-    .neq('status', 'deleted')
-    .order('created_at', { ascending: false });
+      if (!user) {
+        window.location.href = '/login';
+        return;
+      }
 
-  return <DashboardView user={profile} initialListings={listings || []} />;
+      const { data: profileData } = await supabase.from('users').select('*').eq('id', user.id).single();
+      
+      if (!profileData) {
+        window.location.href = '/login';
+        return;
+      }
+
+      if (profileData.role === 'buyer') { window.location.href = '/buyer'; return; }
+      if (profileData.role === 'admin') { window.location.href = '/admin'; return; }
+      if (profileData.seller_status === 'unpaid' || profileData.seller_status === 'pending') {
+        window.location.href = '/paywall';
+        return;
+      }
+
+      const { data: listingsData } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('seller_id', profileData.id)
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false });
+
+      setProfile(profileData);
+      setListings(listingsData || []);
+      setLoading(false);
+    }
+    loadDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return <DashboardView user={profile} initialListings={listings} />;
 }
