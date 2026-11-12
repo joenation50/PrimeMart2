@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Loader2, LogOut, Copy, Check, Store, Mail, Phone, ShieldCheck,
   Calendar, Clock, BarChart3, Package, ExternalLink, AlertCircle,
-  RefreshCw, Share2,
+  RefreshCw, Share2, Eye
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -177,7 +177,21 @@ export default function SellerAccountPage() {
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16 pb-32">
-      <h1 className="text-3xl font-bold text-foreground mb-8">My Account</h1>
+      
+      {/* HEADER WITH PREVIEW BUTTON */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <h1 className="text-3xl font-bold text-foreground">My Account</h1>
+        
+        {storeIdentifier && (
+          <Link 
+            href={`/store/${storeIdentifier}`} 
+            target="_blank"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary/80 transition-colors border border-border"
+          >
+            <Eye className="h-4 w-4" /> Preview Store
+          </Link>
+        )}
+      </div>
 
       <div className="space-y-6">
         {/* Identity */}
@@ -319,14 +333,14 @@ export default function SellerAccountPage() {
           </Link>
           
           {storeIdentifier ? (
-            <Link href={`/store/${storeIdentifier}`} className="glass-card rounded-2xl p-5 hover:bg-secondary/50 transition-colors">
+            <Link href={`/store/${storeIdentifier}`} target="_blank" className="glass-card rounded-2xl p-5 hover:bg-secondary/50 transition-colors">
               <ExternalLink className="h-6 w-6 text-primary mb-3" />
-              <p className="font-semibold text-foreground text-sm">Public Store</p>
+              <p className="font-semibold text-foreground text-sm">Preview Store</p>
             </Link>
           ) : (
             <div className="glass-card rounded-2xl p-5 opacity-60">
               <ExternalLink className="h-6 w-6 text-muted-foreground mb-3" />
-              <p className="font-semibold text-foreground text-sm">Public Store</p>
+              <p className="font-semibold text-foreground text-sm">Preview Store</p>
             </div>
           )}
         </div>

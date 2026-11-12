@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 
 export async function sendNotification(data: {
   target: 'all' | 'specific';
-  userId?: string; // Changed from email to userId
+  userId?: string;
   title: string;
   body: string;
 }) {
@@ -25,12 +25,13 @@ export async function sendNotification(data: {
       user_id: data.userId,
       title: data.title,
       body: data.body,
+      type: 'admin_alert', // <-- ADDED THIS LINE
     });
 
     if (error) return { error: error.message };
   }
 
-  // 2. Send to everyone (Broadcast via Row Duplication)
+  // 2. Send to everyone (Broadcast)
   if (data.target === 'all') {
     const { data: users, error: usersError } = await supabase.from('users').select('id');
     if (usersError || !users) return { error: 'Failed to fetch users' };
@@ -39,6 +40,7 @@ export async function sendNotification(data: {
       user_id: u.id,
       title: data.title,
       body: data.body,
+      type: 'admin_alert', // <-- ADDED THIS LINE
     }));
 
     const { error } = await supabase.from('notifications').insert(notifications);

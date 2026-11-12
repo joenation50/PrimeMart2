@@ -12,7 +12,8 @@ export async function loginAction(formData: FormData) {
 
   if (error) return { error: error.message };
   
-  redirect('/auth/redirect');
+  // Changed from /auth/redirect
+  redirect('/marketplace');
 }
 
 export async function signupAction(formData: FormData) {
@@ -63,5 +64,6 @@ export async function signupAction(formData: FormData) {
     return { error: "Please go to Supabase -> Authentication -> Providers -> Email and turn OFF 'Confirm email'." };
   }
 
-  redirect(intent === 'sell' ? '/paywall' : '/auth/redirect');
+  // Changed from /paywall and /auth/redirect
+  redirect(intent === 'sell' ? '/seller/paywall' : '/marketplace');
 }

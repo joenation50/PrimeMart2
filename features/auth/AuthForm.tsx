@@ -32,7 +32,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       
       const { data: profile } = await supabase.from('users').select('role, seller_status').eq('id', data.user.id).single();
       
-      // NEW ROUTING LOGIC
+      // UPDATED ROUTING LOGIC
       if (profile?.role === 'admin') {
         window.location.href = '/admin';
       } else if (profile?.role === 'seller') {
@@ -42,7 +42,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           window.location.href = '/seller';
         }
       } else {
-        window.location.href = '/buyer';
+        window.location.href = '/marketplace'; // Changed from /buyer
       }
 
     } else {
@@ -76,7 +76,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           return;
         }
       }
-      window.location.href = '/buyer';
+      window.location.href = '/marketplace'; // Changed from /buyer
     }
   }
 

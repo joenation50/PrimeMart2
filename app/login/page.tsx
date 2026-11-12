@@ -7,7 +7,8 @@ export const metadata = { title: 'Sign in · PrimeMart' };
 
 export default async function LoginPage() {
   const session = await getSession();
-  if (session) redirect('/');
+  // CHANGED: If already logged in, send to marketplace
+  if (session) redirect('/marketplace');
 
   return (
     <div className="flex min-h-[90vh] items-center justify-center px-4 py-12 relative overflow-hidden">
