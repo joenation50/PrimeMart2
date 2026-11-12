@@ -6,14 +6,18 @@ import { redirect } from 'next/navigation';
 export async function loginAction(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
-  const next = formData.get('next') as string || '/dashboard';
 
   const supabase = await createServerSupabase();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) return { error: error.message };
   
-  redirect(next);
+  // Check role to redirect correctly
+  const { data: profile } = await supabase.from('users').select('role').eq('id', data.user.id).single();
+  
+  if (profile?.role === 'admin') redirect('/admin');
+  if (profile?.role === 'seller') redirect('/dashboard');
+  redirect('/buyer'); // <-- Send normal users to the buyer page
 }
 
 export async function signupAction(formData: FormData) {
@@ -32,7 +36,6 @@ export async function signupAction(formData: FormData) {
   if (error) return { error: error.message };
 
   if (data.user) {
-    // 1. Create the base user profile
     await supabase.from('users').insert({
       id: data.user.id,
       name: name || email.split('@')[0],
@@ -48,7 +51,6 @@ export async function signupAction(formData: FormData) {
       verification_level: 'none'
     });
 
-    // 2. If they want to sell, create the seller profile draft
     if (intent === 'sell') {
       const businessName = formData.get('business_name') as string;
       const whatsapp = formData.get('whatsapp') as string;
@@ -61,8 +63,10 @@ export async function signupAction(formData: FormData) {
         based_country: 'NG',
         based_city: city || 'Lagos',
       });
+      
+      redirect('/paywall');
     }
   }
 
-  redirect(intent === 'sell' ? '/paywall' : '/dashboard');
+  redirect('/buyer'); // <-- Send new buyers to the buyer page
 }

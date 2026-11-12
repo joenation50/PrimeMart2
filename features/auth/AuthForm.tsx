@@ -1,15 +1,11 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { loginAction, signupAction } from '@/actions/auth';
 import { Loader2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
-  const searchParams = useSearchParams();
-  const next = searchParams.get('next') ?? '/dashboard';
-  
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +41,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       )}
 
       <form action={handleSubmit} className="space-y-5">
-        <input type="hidden" name="next" value={next} />
         <div>
           <label className="mb-2 block text-sm font-medium text-foreground">Email</label>
           <input
