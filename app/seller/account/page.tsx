@@ -19,10 +19,13 @@ type Profile = {
   phone: string | null;
   role: string;
   seller_code: string | null;
-  store_slug: string | null; // Added this
+  store_slug: string | null;
   seller_status: string | null;
   seller_expires_at: string | null;
   verification_level: string | null;
+  seller_profiles: {
+    business_name: string | null;
+  } | null;
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -50,10 +53,14 @@ export default function SellerAccountPage() {
       if (cancelled) return;
       if (!user) { router.replace('/login'); return; }
 
+      // We now JOIN the seller_profiles table to get the business_name
       const { data, error } = await supabase
         .from('users')
-        // Added store_slug to the select
-        .select('id, name, email, phone, role, seller_code, store_slug, seller_status, seller_expires_at, verification_level')
+        .select(`
+          id, name, email, phone, role, seller_code, store_slug, 
+          seller_status, seller_expires_at, verification_level,
+          seller_profiles(business_name)
+        `)
         .eq('id', user.id)
         .single();
 
@@ -67,7 +74,7 @@ export default function SellerAccountPage() {
         router.replace('/buyer/account');
         return;
       }
-      setProfile(data as Profile);
+      setProfile(data as unknown as Profile);
       setLoading(false);
     }
     load();
@@ -107,13 +114,13 @@ export default function SellerAccountPage() {
   }
 
   async function shareStore() {
-    // Use the slug if it exists, otherwise fallback to the random code
+    // Use slug first, fallback to code
     const identifier = profile?.store_slug || profile?.seller_code;
     if (!identifier) return;
 
     const url = `${window.location.origin}/store/${identifier}`;
     const data = {
-      title: `${profile?.name ?? 'My'} store on PrimeMart`,
+      title: `${profile?.seller_profiles?.business_name ?? profile?.name ?? 'My'} store on PrimeMart`,
       text: 'Check out my store on PrimeMart',
       url,
     };
@@ -126,7 +133,7 @@ export default function SellerAccountPage() {
       setShared(true);
       setTimeout(() => setShared(false), 2000);
     } catch {
-      /* user dismissed or clipboard blocked — silent */
+      /* silent */
     }
   }
 
@@ -156,7 +163,10 @@ export default function SellerAccountPage() {
     );
   }
 
-  const initial = (profile.name ?? profile.email ?? '?').charAt(0).toUpperCase();
+  // USE BUSINESS NAME HERE instead of profile.name
+  const displayName = profile.seller_profiles?.business_name || profile.name || 'Unnamed seller';
+  const initial = displayName.charAt(0).toUpperCase();
+  
   const isVerified = profile.verification_level === 'verified';
   const status = profile.seller_status ?? 'unknown';
   const needsRenewal =
@@ -179,7 +189,8 @@ export default function SellerAccountPage() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-semibold truncate">{profile.name ?? 'Unnamed seller'}</h2>
+                {/* Display the Business Name */}
+                <h2 className="text-xl font-semibold truncate">{displayName}</h2>
                 {isVerified && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                     <ShieldCheck className="h-3 w-3" /> Verified
