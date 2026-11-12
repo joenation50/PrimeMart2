@@ -15,23 +15,15 @@ export default function DashboardPage() {
       const supabase = createBrowserSupabase();
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) {
-        window.location.href = '/login';
-        return;
-      }
+      if (!user) { window.location.href = '/login'; return; }
 
       const { data: profileData } = await supabase.from('users').select('*').eq('id', user.id).single();
       
-      if (!profileData) {
-        window.location.href = '/login';
-        return;
-      }
-
+      if (!profileData) { window.location.href = '/login'; return; }
       if (profileData.role === 'buyer') { window.location.href = '/buyer'; return; }
       if (profileData.role === 'admin') { window.location.href = '/admin'; return; }
       if (profileData.seller_status === 'unpaid' || profileData.seller_status === 'pending') {
-        window.location.href = '/paywall';
-        return;
+        window.location.href = '/paywall'; return;
       }
 
       const { data: listingsData } = await supabase

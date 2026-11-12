@@ -1,112 +1,66 @@
-import { requireSeller } from '@/lib/auth';
-import { createServerSupabase } from '@/lib/supabase';
-import { ArrowLeft, Eye, MessageCircle, TrendingUp } from 'lucide-react';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
+import { BarChart, Eye, MessageCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export const metadata = { title: 'Analytics · PrimeMart' };
+export default function SellerAnalyticsPage() {
+  const [stats, setStats] = useState({ views: 0, clicks: 0 });
+  const [loading, setLoading] = useState(true);
 
-export default async function AnalyticsPage() {
-  const session = await requireSeller();
-  const supabase = await createServerSupabase();
+  useEffect(() => {
+    async function fetchAnalytics() {
+      const supabase = createBrowserSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  // Fetch all events for this seller's listings over the last 30 days
-  const { data: events } = await supabase
-    .from('listing_events')
-    .select(`
-      event_type,
-      created_at,
-      listings!inner(seller_id)
-    `)
-    .eq('listings.seller_id', session.profile.id)
-    .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+      // Get all listings by this seller
+      const { data: listings } = await supabase.from('listings').select('id').eq('seller_id', user.id);
+      
+      if (listings && listings.length > 0) {
+        const listingIds = listings.map(l => l.id);
+        
+        // Count views
+        const { count: viewCount } = await supabase.from('listing_events').select('*', { count: 'exact', head: true }).in('listing_id', listingIds).eq('event_type', 'view');
+        
+        // Count clicks
+        const { count: clickCount } = await supabase.from('listing_events').select('*', { count: 'exact', head: true }).in('listing_id', listingIds).eq('event_type', 'whatsapp_click');
 
-  const totalViews = events?.filter(e => e.event_type === 'view').length || 0;
-  const totalClicks = events?.filter(e => e.event_type === 'whatsapp_click').length || 0;
-  
-  // Group events by day for a simple chart (last 7 days)
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    return d.toISOString().split('T')[0];
-  }).reverse();
+        setStats({ views: viewCount || 0, clicks: clickCount || 0 });
+      }
+      setLoading(false);
+    }
+    fetchAnalytics();
+  }, []);
 
-  const chartData = last7Days.map(date => {
-    const dayEvents = events?.filter(e => e.created_at.startsWith(date)) || [];
-    return {
-      date: new Date(date).toLocaleDateString('en-NG', { weekday: 'short' }),
-      views: dayEvents.filter(e => e.event_type === 'view').length,
-      clicks: dayEvents.filter(e => e.event_type === 'whatsapp_click').length,
-    };
-  });
-
-  const maxVal = Math.max(...chartData.map(d => Math.max(d.views, d.clicks)), 10);
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8 animate-fade-in">
-      <div className="mb-8 flex items-center gap-4">
-        <Link href="/dashboard" className="flex h-10 w-10 items-center justify-center rounded-full border border-border hover:bg-secondary">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
-          <p className="text-muted-foreground">Last 30 days performance</p>
-        </div>
-      </div>
+    <div className="container mx-auto max-w-4xl px-4 py-16 pb-32">
+      <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8">
+        <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+      </Link>
 
-      {/* Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-3 mb-8">
-        <div className="glass-card rounded-2xl p-6">
+      <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+        <BarChart className="h-8 w-8 text-primary" /> Store Analytics
+      </h1>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="glass-card rounded-3xl p-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10">
+            <Eye className="h-8 w-8 text-blue-500" />
+          </div>
           <p className="text-sm font-medium text-muted-foreground mb-2">Total Views</p>
-          <div className="flex items-center justify-between">
-            <p className="text-4xl font-bold text-foreground">{totalViews}</p>
-            <Eye className="h-8 w-8 text-muted-foreground/30" />
-          </div>
+          <p className="text-5xl font-bold text-foreground">{stats.views}</p>
         </div>
-        <div className="glass-card rounded-2xl p-6">
-          <p className="text-sm font-medium text-muted-foreground mb-2">WhatsApp Clicks</p>
-          <div className="flex items-center justify-between">
-            <p className="text-4xl font-bold text-primary">{totalClicks}</p>
-            <MessageCircle className="h-8 w-8 text-primary/30" />
-          </div>
-        </div>
-        <div className="glass-card rounded-2xl p-6">
-          <p className="text-sm font-medium text-muted-foreground mb-2">Conversion Rate</p>
-          <div className="flex items-center justify-between">
-            <p className="text-4xl font-bold text-foreground">
-              {totalViews > 0 ? Math.round((totalClicks / totalViews) * 100) : 0}%
-            </p>
-            <TrendingUp className="h-8 w-8 text-green-500/30" />
-          </div>
-        </div>
-      </div>
 
-      {/* Simple Bar Chart */}
-      <div className="glass-card rounded-2xl p-6">
-        <h2 className="mb-6 text-lg font-semibold">Views vs. Clicks (Last 7 Days)</h2>
-        <div className="flex h-64 items-end justify-between gap-2 sm:gap-4">
-          {chartData.map((day, i) => (
-            <div key={i} className="flex flex-1 flex-col items-center gap-2">
-              <div className="relative flex w-full items-end justify-center gap-1 h-full">
-                {/* Views Bar */}
-                <div 
-                  className="w-1/3 rounded-t-md bg-muted-foreground/30 transition-all hover:bg-muted-foreground/50" 
-                  style={{ height: `${(day.views / maxVal) * 100}%`, minHeight: day.views > 0 ? '4px' : '0' }}
-                  title={`${day.views} views`}
-                />
-                {/* Clicks Bar */}
-                <div 
-                  className="w-1/3 rounded-t-md bg-primary transition-all hover:bg-primary/80" 
-                  style={{ height: `${(day.clicks / maxVal) * 100}%`, minHeight: day.clicks > 0 ? '4px' : '0' }}
-                  title={`${day.clicks} clicks`}
-                />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">{day.date}</span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-6 flex items-center justify-center gap-6 text-xs font-medium">
-          <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-muted-foreground/30" /> Views</div>
-          <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-primary" /> WhatsApp Clicks</div>
+        <div className="glass-card rounded-3xl p-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <MessageCircle className="h-8 w-8 text-primary" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground mb-2">WhatsApp Clicks</p>
+          <p className="text-5xl font-bold text-foreground">{stats.clicks}</p>
         </div>
       </div>
     </div>

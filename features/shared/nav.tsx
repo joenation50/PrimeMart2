@@ -8,7 +8,7 @@ import { useTheme } from 'next-themes';
 import { 
   Bell, User, LogOut, LayoutDashboard, Heart, Shield, 
   Sun, Moon, Home, Search, MoreHorizontal, 
-  ChevronRight, PlusCircle, Sparkles
+  ChevronRight, PlusCircle, Sparkles, BarChart, Settings
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { cn } from '@/lib/utils';
@@ -66,8 +66,6 @@ export function Nav() {
   const isBuyer = profile?.role === 'buyer';
 
   const sellerIsUnpaid = isSeller && (profile?.seller_status === 'unpaid' || profile?.seller_status === 'pending');
-  
-  // Exact routing logic
   const homeHref = isSeller ? (sellerIsUnpaid ? '/paywall' : '/dashboard') : '/buyer';
 
   function handleBrowseClick(e: React.MouseEvent) {
@@ -241,6 +239,20 @@ export function Nav() {
                     <div className="flex items-center gap-3"><User className="h-5 w-5 text-muted-foreground" /><span className="font-medium">My Profile</span></div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Link>
+
+                  {/* NEW SELLER LINKS IN MORE MENU */}
+                  {isSeller && !sellerIsUnpaid && (
+                    <>
+                      <Link href="/dashboard/analytics" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
+                        <div className="flex items-center gap-3"><BarChart className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Analytics</span></div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </Link>
+                      <Link href="/dashboard/settings" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
+                        <div className="flex items-center gap-3"><Settings className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Store Settings</span></div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </Link>
+                    </>
+                  )}
                   
                   {isBuyer && (
                     <Link href="/favorites" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">

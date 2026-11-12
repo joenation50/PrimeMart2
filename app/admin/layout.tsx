@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Users, Settings, FileText, AlertTriangle, 
-  Loader2, ArrowLeft, LogOut, ShieldCheck, Menu, X 
+  Loader2, ArrowLeft, LogOut, ShieldCheck, Menu, X, BarChart, Store, ShoppingBag
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 
@@ -13,7 +13,6 @@ const ADMIN_EMAIL = 'joenation98@gmail.com';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -26,7 +25,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         window.location.href = '/admin/login';
         return;
       }
-
       setLoading(false);
     }
 
@@ -34,7 +32,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setLoading(false);
       return;
     }
-
     checkAdmin();
   }, [pathname]);
 
@@ -44,7 +41,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     window.location.href = '/';
   }
 
-  // Skip layout for the login page
   if (pathname === '/admin/login') {
     return <div className="min-h-screen bg-background">{children}</div>;
   }
@@ -59,16 +55,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: '/admin', label: 'Approval Queue', icon: LayoutDashboard },
+    { href: '/admin/analytics', label: 'Analytics', icon: BarChart },
     { href: '/admin/users', label: 'Users & Sellers', icon: Users },
+    { href: '/admin/listings', label: 'All Listings', icon: ShoppingBag }, // NEW
     { href: '/admin/moderation', label: 'Moderation', icon: AlertTriangle },
     { href: '/admin/content', label: 'Content', icon: FileText },
     { href: '/admin/system', label: 'System Settings', icon: Settings },
+    { href: '/admin/profile', label: 'My Store Profile', icon: Store }, // NEW
   ];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
       
-      {/* MOBILE HEADER (Admin Only) */}
+      {/* MOBILE HEADER */}
       <header className="md:hidden sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-background px-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-6 w-6 text-primary" />
@@ -81,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* MOBILE DRAWER */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-background pt-16">
+        <div className="md:hidden fixed inset-0 z-40 bg-background pt-16 overflow-y-auto pb-24">
           <nav className="p-4 space-y-2">
             {navItems.map(item => (
               <Link 
@@ -117,7 +116,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <p className="text-xs text-muted-foreground truncate">{ADMIN_EMAIL}</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {navItems.map(item => {
             const isActive = pathname === item.href;
             return (
@@ -145,7 +144,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-4rem)] md:h-screen">
         <div className="mx-auto max-w-6xl">
           {children}
