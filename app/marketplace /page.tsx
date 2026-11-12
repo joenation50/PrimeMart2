@@ -1,7 +1,3 @@
-export default function MarketplacePage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-green-500">Marketplace Page Works!</h1>
-    </div>
-  );
+export default function TestPage() {
+  return <h1 className="p-8">Hello World</h1>;
 }
