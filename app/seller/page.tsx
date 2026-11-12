@@ -5,7 +5,7 @@ import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { DashboardView } from '@/features/seller/DashboardView';
 import { Loader2 } from 'lucide-react';
 
-export default function DashboardPage() {
+export default function SellerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [listings, setListings] = useState<any[]>([]);
@@ -20,10 +20,14 @@ export default function DashboardPage() {
       const { data: profileData } = await supabase.from('users').select('*').eq('id', user.id).single();
       
       if (!profileData) { window.location.href = '/login'; return; }
+      
+      // Redirect buyers and admins
       if (profileData.role === 'buyer') { window.location.href = '/buyer'; return; }
       if (profileData.role === 'admin') { window.location.href = '/admin'; return; }
+
+      // If seller is unpaid, kick to paywall
       if (profileData.seller_status === 'unpaid' || profileData.seller_status === 'pending') {
-        window.location.href = '/paywall'; return;
+        window.location.href = '/seller/paywall'; return;
       }
 
       const { data: listingsData } = await supabase
@@ -41,11 +45,7 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   return <DashboardView user={profile} initialListings={listings} />;

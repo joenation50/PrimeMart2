@@ -66,7 +66,9 @@ export function Nav() {
   const isBuyer = profile?.role === 'buyer';
 
   const sellerIsUnpaid = isSeller && (profile?.seller_status === 'unpaid' || profile?.seller_status === 'pending');
-  const homeHref = isSeller ? (sellerIsUnpaid ? '/paywall' : '/dashboard') : '/buyer';
+  
+  // NEW ROUTING LOGIC
+  const homeHref = isSeller ? (sellerIsUnpaid ? '/seller/paywall' : '/seller') : '/buyer';
 
   function handleBrowseClick(e: React.MouseEvent) {
     if (!session) {
@@ -97,8 +99,9 @@ export function Nav() {
                 </Link>
               )}
 
-              {isSeller && !sellerIsUnpaid && <Link href="/dashboard" className={cn('text-sm font-medium transition', pathname.startsWith('/dashboard') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Dashboard</Link>}
-              {isSeller && sellerIsUnpaid && <Link href="/paywall" className={cn('text-sm font-medium transition', pathname.startsWith('/paywall') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Activate Account</Link>}
+              {/* UPDATED LINKS */}
+              {isSeller && !sellerIsUnpaid && <Link href="/seller" className={cn('text-sm font-medium transition', pathname.startsWith('/seller') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Seller Dashboard</Link>}
+              {isSeller && sellerIsUnpaid && <Link href="/seller/paywall" className={cn('text-sm font-medium transition', pathname.startsWith('/seller/paywall') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Activate Account</Link>}
               {isBuyer && <Link href="/buyer" className={cn('text-sm font-medium transition', pathname.startsWith('/buyer') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>My Hub</Link>}
             </nav>
           </div>
@@ -119,10 +122,10 @@ export function Nav() {
 
             {session && (
               <>
-                <Link href="/notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border hover:bg-secondary">
+                <Link href={isSeller ? "/seller/notifications" : "/buyer/notifications"} className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border hover:bg-secondary">
                   <Bell className="h-4 w-4" />
                 </Link>
-                <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold hover:opacity-80">
+                <Link href={isSeller ? "/seller/account" : "/buyer/account"} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold hover:opacity-80">
                   {session.user.email?.charAt(0).toUpperCase()}
                 </Link>
                 <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-secondary hover:text-foreground">
@@ -144,7 +147,7 @@ export function Nav() {
           {!session ? (
             <Link href="/signup" className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground">Get Started</Link>
           ) : (
-            <Link href="/account" className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
+            <Link href={isSeller ? "/seller/account" : "/buyer/account"} className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
               {session.user.email?.charAt(0).toUpperCase()}
             </Link>
           )}
@@ -160,11 +163,11 @@ export function Nav() {
 
         <Link href={session ? homeHref : '/'} className={cn("dock-item", pathname === homeHref && "active")}>
           {isSeller ? <LayoutDashboard /> : <Home />}
-          <span>{isSeller ? (sellerIsUnpaid ? 'Pay' : 'Dash') : 'Home'}</span>
+          <span>{isSeller ? (sellerIsUnpaid ? 'Pay' : 'Seller') : 'Buyer'}</span>
         </Link>
 
         {session ? (
-          <Link href="/notifications" className={cn("dock-item relative", pathname === '/notifications' && "active")}>
+          <Link href={isSeller ? "/seller/notifications" : "/buyer/notifications"} className={cn("dock-item relative", pathname.includes('/notifications') && "active")}>
             <Bell />
             <span>Alerts</span>
           </Link>
@@ -176,12 +179,12 @@ export function Nav() {
         )}
 
         {isSeller && !sellerIsUnpaid ? (
-          <Link href="/listings/new" className={cn("dock-item", pathname === '/listings/new' && "active")}>
+          <Link href="/seller/listings/new" className={cn("dock-item", pathname === '/seller/listings/new' && "active")}>
             <PlusCircle />
             <span>Add</span>
           </Link>
         ) : (
-          <Link href="/favorites" className={cn("dock-item", pathname === '/favorites' && "active")}>
+          <Link href="/buyer/favorites" className={cn("dock-item", pathname === '/buyer/favorites' && "active")}>
             <Heart />
             <span>Saved</span>
           </Link>
@@ -235,19 +238,19 @@ export function Nav() {
                     </Link>
                   )}
 
-                  <Link href="/account" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
+                  {/* UPDATED MORE LINKS */}
+                  <Link href={isSeller ? "/seller/account" : "/buyer/account"} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                     <div className="flex items-center gap-3"><User className="h-5 w-5 text-muted-foreground" /><span className="font-medium">My Profile</span></div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Link>
 
-                  {/* NEW SELLER LINKS IN MORE MENU */}
                   {isSeller && !sellerIsUnpaid && (
                     <>
-                      <Link href="/dashboard/analytics" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
+                      <Link href="/seller/analytics" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                         <div className="flex items-center gap-3"><BarChart className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Analytics</span></div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </Link>
-                      <Link href="/dashboard/settings" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
+                      <Link href="/seller/settings" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                         <div className="flex items-center gap-3"><Settings className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Store Settings</span></div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </Link>
@@ -255,7 +258,7 @@ export function Nav() {
                   )}
                   
                   {isBuyer && (
-                    <Link href="/favorites" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
+                    <Link href="/buyer/favorites" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                       <div className="flex items-center gap-3"><Heart className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Saved Items</span></div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </Link>

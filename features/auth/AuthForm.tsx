@@ -30,16 +30,16 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         return;
       }
       
-      // Fetch full profile to check role AND status
       const { data: profile } = await supabase.from('users').select('role, seller_status').eq('id', data.user.id).single();
       
+      // NEW ROUTING LOGIC
       if (profile?.role === 'admin') {
         window.location.href = '/admin';
       } else if (profile?.role === 'seller') {
         if (profile.seller_status === 'unpaid' || profile.seller_status === 'pending') {
-          window.location.href = '/paywall';
+          window.location.href = '/seller/paywall';
         } else {
-          window.location.href = '/dashboard';
+          window.location.href = '/seller';
         }
       } else {
         window.location.href = '/buyer';
@@ -72,7 +72,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         }, { onConflict: 'id' });
 
         if (isSelling) {
-          window.location.href = '/paywall';
+          window.location.href = '/seller/paywall';
           return;
         }
       }
