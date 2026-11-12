@@ -24,22 +24,7 @@ export default function AdminLoginPage() {
       return;
     }
 
-    // Force database to make them admin
-    await supabase.from('users').upsert({
-      id: data.user.id,
-      email: email,
-      name: 'Admin',
-      role: 'admin',
-      seller_code: 'USR-ADMIN1',
-      country: 'NG',
-      country_locked: true,
-      timezone: 'Africa/Lagos',
-      auth_method: 'email',
-      account_status: 'active',
-      verification_level: 'verified'
-    }, { onConflict: 'id' });
-
-    // Hard reload to admin dashboard
+    // Just redirect, let the layout handle the email check
     window.location.href = '/admin';
   }
 

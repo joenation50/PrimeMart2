@@ -66,6 +66,8 @@ export function Nav() {
   const isBuyer = profile?.role === 'buyer';
 
   const sellerIsUnpaid = isSeller && (profile?.seller_status === 'unpaid' || profile?.seller_status === 'pending');
+  
+  // Exact routing logic
   const homeHref = isSeller ? (sellerIsUnpaid ? '/paywall' : '/dashboard') : '/buyer';
 
   function handleBrowseClick(e: React.MouseEvent) {
@@ -228,7 +230,6 @@ export function Nav() {
                     <p className="text-xs text-muted-foreground capitalize">{isAdmin ? 'Admin' : isSeller ? 'Seller' : 'Buyer'}</p>
                   </div>
 
-                  {/* ADMIN LINK IN MORE MENU */}
                   {isAdmin && (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 bg-primary/10 text-primary mb-2">
                       <div className="flex items-center gap-3"><Shield className="h-5 w-5" /><span className="font-bold">Admin Panel</span></div>
