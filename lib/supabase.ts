@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import type { NextRequest, NextResponse } from 'next/server';
 
-// 1. SERVER CLIENT (For logged-in users)
 export async function createServerSupabase() {
   const cookieStore = await cookies();
   return createServerClient(
@@ -12,17 +11,25 @@ export async function createServerSupabase() {
     {
       cookies: {
         getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet: any[]) {
+        setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-          } catch {}
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, {
+                ...options,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 60 * 60 * 24 * 365, // 1 year
+              });
+            });
+          } catch {
+            // Safe to ignore in Server Components
+          }
         },
       },
     }
   );
 }
 
-// 2. ADMIN CLIENT (Bypasses security for admin actions)
 export function createAdminSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +40,6 @@ export function createAdminSupabase() {
   );
 }
 
-// 3. MIDDLEWARE HELPER (Refreshes session cookies)
 export async function updateSession(request: NextRequest, response: NextResponse): Promise<NextResponse> {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,9 +47,16 @@ export async function updateSession(request: NextRequest, response: NextResponse
     {
       cookies: {
         getAll() { return request.cookies.getAll(); },
-        setAll(cookiesToSet: any[]) {
+        setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, {
+              ...options,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              maxAge: 60 * 60 * 24 * 365,
+            });
+          });
         },
       },
     }

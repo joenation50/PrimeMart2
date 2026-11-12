@@ -1,3 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+    --primary: 141 73% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 4%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --border: 240 6% 90%;
+    --glass: 0 0% 100% / 0.7;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
+    --primary: 141 73% 42%;
+    --primary-foreground: 0 0% 5%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 60%;
+    --border: 0 0% 15%;
+    --glass: 0 0% 5% / 0.6;
+  }
+}
+
+@layer base {
+  * { border-color: hsl(var(--border)); }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+}
+
+/* Glassmorphism Utilities */
+.glass-nav {
+  background: hsla(var(--glass));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.glass-card {
+  background: hsla(var(--glass));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+.dark .glass-card {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px hsla(141, 73%, 42%, 0.2); }
+  50% { box-shadow: 0 0 60px hsla(141, 73%, 42%, 0.6); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes slide-up-menu {
+  from { opacity: 0; transform: translateY(40px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-glow { animation: glow-pulse 3s ease-in-out infinite; }
+.animate-slide-up { animation: slide-up 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+.animate-marquee { animation: marquee 20s linear infinite; }
+.animate-slide-up-menu { animation: slide-up-menu 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Subtle grid pattern */
+.bg-grid {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, hsla(var(--foreground), 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, hsla(var(--foreground), 0.05) 1px, transparent 1px);
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 70%);
+}
+
 /* Floating Liquid Glass Dock (Mobile) */
 .floating-dock {
   position: fixed;
@@ -16,7 +120,7 @@
   border-radius: 9999px;
   box-shadow: 0 10px 40px -10px rgba(0,0,0,0.3), 0 0 0 1px hsla(var(--foreground), 0.05);
   width: 92%;
-  max-width: 400px; /* Makes it wider */
+  max-width: 400px;
   justify-content: space-around;
 }
 
@@ -29,7 +133,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 48px; /* Shorter height */
+  height: 48px;
   width: 48px;
   border-radius: 9999px;
   color: hsl(var(--muted-foreground));
@@ -47,7 +151,6 @@
   background: hsla(var(--primary), 0.1);
 }
 
-/* The Little Green Glow */
 .dock-item.active::after {
   content: '';
   position: absolute;
@@ -71,7 +174,7 @@
   opacity: 0;
   transition: opacity 0.2s ease;
   position: absolute;
-  bottom: -14px; /* Moves text below the icon so it doesn't push the icon up */
+  bottom: -14px;
 }
 
 .dock-item:hover span, .dock-item.active span {

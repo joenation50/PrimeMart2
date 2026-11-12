@@ -12,12 +12,13 @@ export async function loginAction(formData: FormData) {
 
   if (error) return { error: error.message };
   
-  // Check role to redirect correctly
+  // Fetch role to know where to send them
   const { data: profile } = await supabase.from('users').select('role').eq('id', data.user.id).single();
   
+  // HARD REDIRECTS
   if (profile?.role === 'admin') redirect('/admin');
   if (profile?.role === 'seller') redirect('/dashboard');
-  redirect('/buyer'); // <-- Send normal users to the buyer page
+  redirect('/buyer');
 }
 
 export async function signupAction(formData: FormData) {
@@ -52,21 +53,16 @@ export async function signupAction(formData: FormData) {
     });
 
     if (intent === 'sell') {
-      const businessName = formData.get('business_name') as string;
-      const whatsapp = formData.get('whatsapp') as string;
-      const city = formData.get('city') as string;
-
       await supabase.from('seller_profiles').insert({
         user_id: data.user.id,
         real_name: name,
-        business_name: businessName || 'My Store',
+        business_name: formData.get('business_name') as string || 'My Store',
         based_country: 'NG',
-        based_city: city || 'Lagos',
+        based_city: formData.get('city') as string || 'Lagos',
       });
-      
       redirect('/paywall');
     }
   }
 
-  redirect('/buyer'); // <-- Send new buyers to the buyer page
+  redirect('/buyer');
 }
