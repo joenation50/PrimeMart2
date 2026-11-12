@@ -19,7 +19,8 @@ type Profile = {
   phone: string | null;
   role: string;
   seller_code: string | null;
-  seller_status: 'unpaid' | 'pending' | 'active' | 'expired' | 'suspended' | null;
+  store_slug: string | null; // Added this
+  seller_status: string | null;
   seller_expires_at: string | null;
   verification_level: string | null;
 };
@@ -51,7 +52,8 @@ export default function SellerAccountPage() {
 
       const { data, error } = await supabase
         .from('users')
-        .select('id, name, email, phone, role, seller_code, seller_status, seller_expires_at, verification_level')
+        // Added store_slug to the select
+        .select('id, name, email, phone, role, seller_code, store_slug, seller_status, seller_expires_at, verification_level')
         .eq('id', user.id)
         .single();
 
@@ -105,10 +107,13 @@ export default function SellerAccountPage() {
   }
 
   async function shareStore() {
-    if (!profile?.seller_code) return;
-    const url = `${window.location.origin}/store/${profile.seller_code}`;
+    // Use the slug if it exists, otherwise fallback to the random code
+    const identifier = profile?.store_slug || profile?.seller_code;
+    if (!identifier) return;
+
+    const url = `${window.location.origin}/store/${identifier}`;
     const data = {
-      title: `${profile.name ?? 'My'} store on PrimeMart`,
+      title: `${profile?.name ?? 'My'} store on PrimeMart`,
       text: 'Check out my store on PrimeMart',
       url,
     };
@@ -158,6 +163,8 @@ export default function SellerAccountPage() {
     status === 'unpaid' ||
     status === 'expired' ||
     (status === 'active' && daysRemaining !== null && daysRemaining <= 30);
+
+  const storeIdentifier = profile.store_slug || profile.seller_code;
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16 pb-32">
@@ -226,7 +233,7 @@ export default function SellerAccountPage() {
                 {shared ? 'Link copied' : 'Share store link'}
               </button>
               <p className="mt-3 text-xs text-muted-foreground">
-                Share this code with buyers so they can find your storefront.
+                Share your store link with buyers so they can find your storefront.
               </p>
             </>
           ) : (
@@ -302,8 +309,10 @@ export default function SellerAccountPage() {
             <p className="font-semibold text-foreground text-sm">Analytics</p>
             <p className="text-xs text-muted-foreground mt-1">Views & clicks</p>
           </Link>
-          {profile.seller_code ? (
-            <Link href={`/store/${profile.seller_code}`} className="glass-card rounded-2xl p-5 hover:bg-secondary/50 transition-colors">
+          
+          {/* UPDATED PUBLIC STORE LINK */}
+          {storeIdentifier ? (
+            <Link href={`/store/${storeIdentifier}`} className="glass-card rounded-2xl p-5 hover:bg-secondary/50 transition-colors">
               <ExternalLink className="h-6 w-6 text-primary mb-3" />
               <p className="font-semibold text-foreground text-sm">Public Store</p>
               <p className="text-xs text-muted-foreground mt-1">What buyers see</p>
