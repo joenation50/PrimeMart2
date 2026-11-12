@@ -19,7 +19,7 @@ export async function toggleFavorite(listingId: string) {
   
   if (existing) {
     await supabase.from('favorites').delete().eq('id', existing.id);
-    revalidatePath('/favorites');
+    revalidatePath('/buyer/favorites');
     return { ok: true, favorited: false };
   }
   
@@ -28,7 +28,7 @@ export async function toggleFavorite(listingId: string) {
     listing_id: listingId,
   });
   
-  revalidatePath('/favorites');
+  revalidatePath('/buyer/favorites');
   return { ok: true, favorited: true };
 }
 
@@ -51,6 +51,7 @@ export async function trackWhatsAppClick(listingId: string) {
   
   const supabase = await createServerSupabase();
   
+  // Rate limit: 1 click per user per listing per 24 hours
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: existing } = await supabase
     .from('listing_events')
@@ -76,7 +77,7 @@ export async function submitReport(data: {
   target_type: 'listing' | 'seller' | 'buyer' | 'review';
   target_id: string;
   reason: string;
-  details ? : string;
+  details?: string;
 }) {
   const session = await getSession();
   if (!session) return { error: 'Not logged in' };
@@ -109,7 +110,8 @@ export async function markNotificationRead(notificationId: string) {
     .eq('id', notificationId)
     .eq('user_id', session.profile.id);
   
-  revalidatePath('/notifications');
+  revalidatePath('/buyer/notifications');
+  revalidatePath('/seller/notifications');
   return { ok: true };
 }
 
@@ -124,6 +126,7 @@ export async function markAllNotificationsRead() {
     .eq('user_id', session.profile.id)
     .is('read_at', null);
   
-  revalidatePath('/notifications');
+  revalidatePath('/buyer/notifications');
+  revalidatePath('/seller/notifications');
   return { ok: true };
 }
