@@ -1,4 +1,3 @@
-// features/seller/DashboardView.tsx
 'use client';
 
 import { useState } from 'react';
@@ -7,7 +6,15 @@ import { PlusCircle, AlertCircle, Lock, Eye, MessageCircle, TrendingUp } from 'l
 import type { User, Listing } from '@/types';
 import { ListingRow } from './ListingRow';
 
-export function DashboardView({ user, initialListings }: { user: User; initialListings: Listing[] }) {
+export function DashboardView({ 
+  user, 
+  initialListings, 
+  hideHeader = false 
+}: { 
+  user: User; 
+  initialListings: Listing[]; 
+  hideHeader?: boolean;
+}) {
   const [listings] = useState(initialListings);
 
   const totalViews = listings.reduce((sum, l) => sum + (l.view_count || 0), 0);
@@ -24,24 +31,27 @@ export function DashboardView({ user, initialListings }: { user: User; initialLi
 
       <div className="container relative z-10 mx-auto max-w-6xl px-4 py-8 animate-fade-in">
         
-        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {user.name}</p>
+        {/* Header - Only shows if hideHeader is false */}
+        {!hideHeader && (
+          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+              <p className="text-muted-foreground">Welcome back, {user.name}</p>
+            </div>
+            
+            <Link
+              href={isLocked ? '/paywall' : '/listings/new'}
+              className={`flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-all ${
+                isLocked 
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed' 
+                  : 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105'
+              }`}
+            >
+              {isLocked ? <Lock className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
+              {isLocked ? 'Pay to Publish' : 'Add New Listing'}
+            </Link>
           </div>
-          
-          <Link
-            href={isLocked ? '/paywall' : '/listings/new'}
-            className={`flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-all ${
-              isLocked 
-                ? 'bg-muted text-muted-foreground cursor-not-allowed' 
-                : 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105'
-            }`}
-          >
-            {isLocked ? <Lock className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
-            {isLocked ? 'Pay to Publish' : 'Add New Listing'}
-          </Link>
-        </div>
+        )}
 
         {isLocked && (
           <div className="mb-8 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-6 text-blue-500 backdrop-blur-sm">
