@@ -19,28 +19,17 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
     const supabase = createBrowserSupabase();
     
     if (mode === 'login') {
-      // 1. Sign in
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setError(error.message);
         setLoading(false);
         return;
       }
       
-      // 2. Check the role
-      const { data: profile } = await supabase.from('users').select('role').eq('id', data.user.id).single();
-      
-      // 3. FORCE A HARD RELOAD (This bypasses the Next.js redirect bug)
-      if (profile?.role === 'admin') {
-        window.location.href = '/admin';
-      } else if (profile?.role === 'seller') {
-        window.location.href = '/dashboard';
-      } else {
-        window.location.href = '/buyer';
-      }
+      // Let the server figure out where to send them
+      window.location.href = '/auth/redirect';
 
     } else {
-      // 1. Sign up
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setError(error.message);
@@ -48,13 +37,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         return;
       }
 
-      // 2. Create the user record
       if (data.user) {
         await supabase.from('users').insert({
           id: data.user.id,
           name: email.split('@')[0],
           email: email,
-          role: 'buyer', // Default to buyer
+          role: 'buyer',
           seller_code: `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
           country: 'NG',
           country_locked: false,
@@ -65,8 +53,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         });
       }
 
-      // 3. FORCE A HARD RELOAD
-      window.location.href = '/buyer';
+      window.location.href = '/auth/redirect';
     }
   }
 
@@ -117,13 +104,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           disabled={loading}
           className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : mode === 'login' ? (
-            'Sign in'
-          ) : (
-            'Create account'
-          )}
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
       </form>
 

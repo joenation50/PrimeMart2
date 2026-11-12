@@ -24,6 +24,7 @@ export async function adminLogin(email: string, password: string) {
     return { error: 'Invalid credentials' };
   }
 
+  // Force the database to recognize this user as an admin
   const adminSupabase = createAdminSupabase();
   await adminSupabase
     .from('users')
@@ -47,7 +48,8 @@ export async function adminLogin(email: string, password: string) {
     targetId: data.user.id,
   });
 
-  redirect('/admin');
+  // Send to the master router
+  redirect('/auth/redirect');
 }
 
 export async function adminLogout() {

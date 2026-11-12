@@ -1,27 +1,52 @@
-import { requireAuth } from '@/lib/auth';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
 import Link from 'next/link';
-import { ShoppingBag, Heart, Store, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Heart, Store, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 
-export const metadata = { title: 'My Account · PrimeMart' };
+export default function BuyerPage() {
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState('');
 
-export default async function BuyerPage() {
-  const session = await requireAuth();
-  const { profile } = session;
+  useEffect(() => {
+    async function getUser() {
+      const supabase = createBrowserSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        window.location.href = '/login';
+        return;
+      }
 
-  // If a seller or admin lands here, send them to their correct dashboard
-  if (profile.role === 'admin') redirect('/admin');
-  if (profile.role === 'seller') redirect('/dashboard');
+      const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single();
+      
+      if (profile?.role === 'admin') window.location.href = '/admin';
+      else if (profile?.role === 'seller') window.location.href = '/dashboard';
+      else {
+        setName(profile?.name || 'Buyer');
+        setLoading(false);
+      }
+    }
+    getUser();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-16 min-h-[80vh]">
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-foreground">Welcome, {profile.name}</h1>
+        <h1 className="text-3xl font-bold text-foreground">Welcome, {name}</h1>
         <p className="text-muted-foreground">This is your buyer dashboard.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Saved Items Card */}
         <Link href="/favorites" className="glass-card group rounded-3xl p-8 transition-all hover:-translate-y-1 hover:border-primary/50">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-background border border-border shadow-sm">
             <Heart className="h-6 w-6 text-primary" />
@@ -33,7 +58,6 @@ export default async function BuyerPage() {
           </div>
         </Link>
 
-        {/* Upgrade to Seller Card */}
         <Link href="/signup?intent=sell" className="glass-card group rounded-3xl p-8 transition-all hover:-translate-y-1 hover:border-primary/50 bg-primary/5">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Store className="h-6 w-6" />
