@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { SearchBar } from '@/features/marketplace/search';
 import { ListingGrid, SkeletonGrid } from '@/features/marketplace/grid';
-import { Loader2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 export default function MarketplacePage() {
   const [listings, setListings] = useState<any[]>([]);
@@ -33,11 +32,7 @@ export default function MarketplacePage() {
       setLoading(false);
     }
 
-    // Add a tiny debounce for search
-    const timer = setTimeout(() => {
-      fetchListings();
-    }, 300);
-
+    const timer = setTimeout(() => fetchListings(), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -50,14 +45,14 @@ export default function MarketplacePage() {
           <p className="text-muted-foreground">Discover products from verified sellers.</p>
         </div>
 
-        {/* Reusing your existing search component */}
-        <div className="mb-8 max-w-2xl">
+        <div className="relative mb-8 max-w-2xl">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-full border border-border bg-background px-6 py-4 text-sm outline-none transition focus:border-primary"
+            className="w-full rounded-full border border-border bg-background pl-12 pr-6 py-4 text-sm outline-none transition focus:border-primary"
           />
         </div>
 

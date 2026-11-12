@@ -3,56 +3,46 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, ShieldCheck } from 'lucide-react';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { MarketplaceListing } from './types';
-
-interface ListingCardProps {
-  listing: MarketplaceListing;
-  isFavorited?: boolean;
-  onToggleFavorite?: (id: string) => void;
-  showFavorite?: boolean;
-}
-
-function isNew(createdAt: string) {
-  return Date.now() - new Date(createdAt).getTime() < 24 * 60 * 60 * 1000;
-}
 
 export function ListingCard({
   listing,
   isFavorited = false,
   onToggleFavorite,
   showFavorite = false,
-}: ListingCardProps) {
+}: {
+  listing: any;
+  isFavorited?: boolean;
+  onToggleFavorite?: (id: string) => void;
+  showFavorite?: boolean;
+}) {
   const [favorited, setFavorited] = useState(isFavorited);
-  const primaryImage = listing.images[0];
+  
+  // Fallback image if none exists
+  const primaryImage = listing.images?.[0] 
+    ? `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_600,h_750,c_fill,q_auto,f_auto/${listing.images[0]}`
+    : "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop";
+
+  const sellerName = listing.seller_profile?.business_name || listing.users?.name || 'Seller';
+  const isVerified = listing.users?.verification_level === 'verified';
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-border bg-secondary">
-        {primaryImage ? (
-          <Image
-            src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_600,h_750,c_fill,q_auto,f_auto/${primaryImage}`}
-            alt={listing.title}
-            fill
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-muted-foreground">No image</div>
-        )}
+      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-secondary border border-border/50">
+        <Image
+          src={primaryImage}
+          alt={listing.title}
+          fill
+          sizes="(max-width: 768px) 50vw, 25vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
 
+        {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-        {isNew(listing.created_at) && (
-          <span className="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-lg">New</span>
-        )}
-
-        {listing.featured_until && (
-          <span className="absolute right-3 top-3 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-semibold text-white shadow-lg">Featured</span>
-        )}
-
+        {/* Favorite Button */}
         {showFavorite && (
           <button
             type="button"
@@ -61,18 +51,35 @@ export function ListingCard({
               setFavorited(!favorited);
               onToggleFavorite?.(listing.id);
             }}
-            className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full glass-card transition hover:scale-110"
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full glass-card transition hover:scale-110"
           >
             <Heart className={cn('h-4 w-4 transition', favorited ? 'fill-primary text-primary' : 'text-foreground')} />
           </button>
         )}
+        
+        {/* Featured Tag */}
+        {listing.featured_until && (
+          <span className="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-lg">
+            Featured
+          </span>
+        )}
       </div>
 
       <div className="mt-4 space-y-1">
-        <h3 className="line-clamp-2 text-sm font-medium leading-snug">{listing.title}</h3>
-        <p className="text-base font-semibold">
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-medium text-muted-foreground truncate max-w-[150px]">
+            {sellerName}
+          </p>
+          {isVerified && <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />}
+        </div>
+        
+        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors">
+          {listing.title}
+        </h3>
+        
+        <p className="pt-1 text-base font-bold text-foreground">
           {listing.price_negotiable ? (
-            <span className="text-muted-foreground text-sm">Negotiable</span>
+            <span className="text-sm text-muted-foreground font-medium">Negotiable</span>
           ) : (
             formatPrice(listing.price, listing.currency)
           )}
@@ -82,21 +89,19 @@ export function ListingCard({
   );
 }
 
-interface ListingGridProps {
-  listings: MarketplaceListing[];
-  favoriteIds?: Set<string>;
-  onToggleFavorite?: (id: string) => void;
-  showFavorites?: boolean;
-}
-
 export function ListingGrid({
   listings,
   favoriteIds,
   onToggleFavorite,
   showFavorites = false,
-}: ListingGridProps) {
+}: {
+  listings: any[];
+  favoriteIds?: Set<string>;
+  onToggleFavorite?: (id: string) => void;
+  showFavorites?: boolean;
+}) {
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
       {listings.map((listing) => (
         <ListingCard
           key={listing.id}
@@ -110,45 +115,15 @@ export function ListingGrid({
   );
 }
 
-interface LoadMoreButtonProps {
-  hasMore: boolean;
-  loading: boolean;
-  onClick: () => void;
-}
-
-export function LoadMoreButton({ hasMore, loading, onClick }: LoadMoreButtonProps) {
-  if (!hasMore) {
-    return (
-      <div className="py-12 text-center text-sm text-muted-foreground">
-        You&apos;ve seen everything. Check back soon.
-      </div>
-    );
-  }
+export function SkeletonGrid({ count = 8 }: { count?: number }) {
   return (
-    <div className="py-12 text-center">
-      <button
-        onClick={onClick}
-        disabled={loading}
-        className="rounded-full border border-border px-8 py-3 text-sm font-medium transition hover:bg-muted disabled:opacity-50"
-      >
-        {loading ? 'Loading…' : 'Load more'}
-      </button>
-    </div>
-  );
-}
-
-interface SkeletonGridProps {
-  count?: number;
-}
-
-export function SkeletonGrid({ count = 8 }: SkeletonGridProps) {
-  return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <div className="aspect-[4/5] animate-pulse rounded-xl bg-muted" />
+        <div key={i} className="space-y-3">
+          <div className="aspect-[4/5] animate-pulse rounded-2xl bg-muted" />
+          <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
           <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+          <div className="h-5 w-1/2 animate-pulse rounded bg-muted" />
         </div>
       ))}
     </div>
