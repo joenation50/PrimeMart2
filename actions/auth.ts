@@ -1,6 +1,6 @@
 'use server';
 
-import { createServerSupabase } from '@/lib/supabase';
+import { createServerSupabase, createAdminSupabase } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 
 export async function loginAction(formData: FormData) {
@@ -12,7 +12,6 @@ export async function loginAction(formData: FormData) {
 
   if (error) return { error: error.message };
   
-  // Push to the central role router
   redirect('/auth/redirect');
 }
 
@@ -24,15 +23,16 @@ export async function signupAction(formData: FormData) {
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.auth.signUp({ 
-    email, 
-    password,
-    options: { data: { name } }
+    email, password, options: { data: { name } }
   });
 
   if (error) return { error: error.message };
 
   if (data.user) {
-    await supabase.from('users').insert({
+    // USE ADMIN CLIENT TO BYPASS RLS
+    const adminSupabase = createAdminSupabase();
+    
+    await adminSupabase.from('users').insert({
       id: data.user.id,
       name: name || email.split('@')[0],
       email: email,
@@ -48,7 +48,7 @@ export async function signupAction(formData: FormData) {
     });
 
     if (intent === 'sell') {
-      await supabase.from('seller_profiles').insert({
+      await adminSupabase.from('seller_profiles').insert({
         user_id: data.user.id,
         real_name: name,
         business_name: formData.get('business_name') as string || 'My Store',
@@ -59,6 +59,5 @@ export async function signupAction(formData: FormData) {
     }
   }
 
-  // Push to the central role router
   redirect('/auth/redirect');
 }
