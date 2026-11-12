@@ -11,19 +11,17 @@ export async function createServerSupabase() {
     {
       cookies: {
         getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: any[]) { // <-- TYPESCRIPT FIX HERE
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, {
                 ...options,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 60 * 60 * 24 * 365, // 1 year
+                secure: true,
+                sameSite: 'none',
+                maxAge: 60 * 60 * 24 * 365,
               });
             });
-          } catch {
-            // Safe to ignore in Server Components
-          }
+          } catch {}
         },
       },
     }
@@ -47,13 +45,13 @@ export async function updateSession(request: NextRequest, response: NextResponse
     {
       cookies: {
         getAll() { return request.cookies.getAll(); },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: any[]) { // <-- TYPESCRIPT FIX HERE
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, {
               ...options,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
+              secure: true,
+              sameSite: 'none',
               maxAge: 60 * 60 * 24 * 365,
             });
           });
