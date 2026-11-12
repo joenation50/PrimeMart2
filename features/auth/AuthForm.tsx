@@ -1,11 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Loader2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
+  const searchParams = useSearchParams();
+  const intent = searchParams.get('intent') || 'browse';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,12 +30,20 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         return;
       }
       
-      // Check role in the browser, then hard redirect
-      const { data: profile } = await supabase.from('users').select('role').eq('id', data.user.id).single();
+      // Fetch full profile to check role AND status
+      const { data: profile } = await supabase.from('users').select('role, seller_status').eq('id', data.user.id).single();
       
-      if (profile?.role === 'admin') window.location.href = '/admin';
-      else if (profile?.role === 'seller') window.location.href = '/dashboard';
-      else window.location.href = '/buyer';
+      if (profile?.role === 'admin') {
+        window.location.href = '/admin';
+      } else if (profile?.role === 'seller') {
+        if (profile.seller_status === 'unpaid' || profile.seller_status === 'pending') {
+          window.location.href = '/paywall';
+        } else {
+          window.location.href = '/dashboard';
+        }
+      } else {
+        window.location.href = '/buyer';
+      }
 
     } else {
       const { data, error } = await supabase.auth.signUp({ email, password });
@@ -42,11 +54,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       }
 
       if (data.user) {
+        const isSelling = intent === 'sell';
+        
         await supabase.from('users').upsert({
           id: data.user.id,
           name: email.split('@')[0],
           email: email,
-          role: 'buyer',
+          role: isSelling ? 'seller' : 'buyer',
+          seller_status: isSelling ? 'unpaid' : null,
           seller_code: `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
           country: 'NG',
           country_locked: false,
@@ -55,6 +70,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           account_status: 'active',
           verification_level: 'none'
         }, { onConflict: 'id' });
+
+        if (isSelling) {
+          window.location.href = '/paywall';
+          return;
+        }
       }
       window.location.href = '/buyer';
     }

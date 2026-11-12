@@ -21,9 +21,11 @@ export default function BuyerPage() {
 
       const { data: profile } = await supabase.from('users').select('name, role').eq('id', user.id).single();
       
-      if (profile?.role === 'admin') window.location.href = '/admin';
-      else if (profile?.role === 'seller') window.location.href = '/dashboard';
-      else {
+      if (profile?.role === 'admin') {
+        window.location.href = '/admin';
+      } else if (profile?.role === 'seller') {
+        window.location.href = '/dashboard';
+      } else {
         setName(profile?.name || 'Buyer');
         setLoading(false);
       }
@@ -40,13 +42,14 @@ export default function BuyerPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-16 min-h-[80vh]">
+    <div className="container mx-auto max-w-4xl px-4 py-16 min-h-[80vh] pb-32">
       <div className="mb-10">
         <h1 className="text-3xl font-bold text-foreground">Welcome, {name}</h1>
         <p className="text-muted-foreground">This is your buyer dashboard.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Saved Items Card */}
         <Link href="/favorites" className="glass-card group rounded-3xl p-8 transition-all hover:-translate-y-1 hover:border-primary/50">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-background border border-border shadow-sm">
             <Heart className="h-6 w-6 text-primary" />
@@ -58,7 +61,8 @@ export default function BuyerPage() {
           </div>
         </Link>
 
-        <Link href="/signup?intent=sell" className="glass-card group rounded-3xl p-8 transition-all hover:-translate-y-1 hover:border-primary/50 bg-primary/5">
+        {/* Start Selling Card */}
+        <Link href="/upgrade" className="glass-card group rounded-3xl p-8 transition-all hover:-translate-y-1 hover:border-primary/50 bg-primary/5">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Store className="h-6 w-6" />
           </div>
@@ -70,6 +74,7 @@ export default function BuyerPage() {
         </Link>
       </div>
 
+      {/* Account Status */}
       <div className="mt-10 glass-card rounded-2xl p-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <ShieldCheck className="h-6 w-6 text-green-500" />

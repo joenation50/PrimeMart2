@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { 
-  X, Bell, User, LogOut, LayoutDashboard, Heart, Shield, 
-  Sun, Moon, Home, Store, Search, MoreHorizontal, 
-  ChevronRight, PlusCircle, Sparkles, FileText, AlertTriangle, Settings, BarChart
+  Bell, User, LogOut, LayoutDashboard, Heart, 
+  Sun, Moon, Home, Search, MoreHorizontal, 
+  ChevronRight, PlusCircle, Sparkles
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { cn } from '@/lib/utils';
@@ -16,29 +16,40 @@ import { SITE_NAME } from '@/lib/constants';
 
 export function Nav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   
-  // Client-side session state
   const [session, setSession] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
     const supabase = createBrowserSupabase();
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function getSessionAndProfile() {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
+      
+      if (session) {
+        const { data } = await supabase.from('users').select('role, seller_status').eq('id', session.user.id).single();
+        setProfile(data);
+      }
       setLoading(false);
-    });
+    }
+    
+    getSessionAndProfile();
 
-    // Listen for auth changes (login/logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
+      if (session) {
+        const { data } = await supabase.from('users').select('role, seller_status').eq('id', session.user.id).single();
+        setProfile(data);
+      } else {
+        setProfile(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -50,13 +61,13 @@ export function Nav() {
     window.location.href = '/';
   }
 
-  // Determine role based on metadata or default
-  // Since we don't have the full profile here, we check the email or metadata
-  const isAdmin = session?.user?.email === 'joenation98@gmail.com'; 
-  const isSeller = session?.user?.user_metadata?.intent === 'sell' || isAdmin;
-  const isBuyer = session && !isSeller && !isAdmin;
+  const isAdmin = profile?.role === 'admin';
+  const isSeller = profile?.role === 'seller' || isAdmin;
+  const isBuyer = profile?.role === 'buyer';
 
-  const homeHref = isSeller ? '/dashboard' : '/buyer';
+  // If seller is unpaid, their home is the paywall
+  const sellerIsUnpaid = isSeller && (profile?.seller_status === 'unpaid' || profile?.seller_status === 'pending');
+  const homeHref = isSeller ? (sellerIsUnpaid ? '/paywall' : '/dashboard') : '/buyer';
 
   function handleBrowseClick(e: React.MouseEvent) {
     if (!session) {
@@ -65,14 +76,13 @@ export function Nav() {
     }
   }
 
-  if (loading) return null; // Prevent flash of wrong state
+  if (loading) return null;
 
   return (
     <>
-      {/* TOP NAVBAR (Desktop) */}
+      {/* DESKTOP NAV */}
       <header className="sticky top-0 z-50 w-full glass-nav hidden md:block">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center">
               <Image src="/logo-black.png" alt={SITE_NAME} width={140} height={35} priority className="h-8 w-auto object-contain block dark:hidden" />
@@ -81,8 +91,8 @@ export function Nav() {
             
             <nav className="flex items-center gap-6">
               <Link href="/marketplace" className={cn('text-sm font-medium transition', pathname === '/marketplace' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Marketplace</Link>
-              <Link href="/verified-sellers" className={cn('text-sm font-medium transition', pathname === '/verified-sellers' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Verified Sellers</Link>
-              {isSeller && <Link href="/dashboard" className={cn('text-sm font-medium transition', pathname.startsWith('/dashboard') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Dashboard</Link>}
+              {isSeller && !sellerIsUnpaid && <Link href="/dashboard" className={cn('text-sm font-medium transition', pathname.startsWith('/dashboard') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Dashboard</Link>}
+              {isSeller && sellerIsUnpaid && <Link href="/paywall" className={cn('text-sm font-medium transition', pathname.startsWith('/paywall') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Activate Account</Link>}
               {isBuyer && <Link href="/buyer" className={cn('text-sm font-medium transition', pathname.startsWith('/buyer') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>My Hub</Link>}
             </nav>
           </div>
@@ -118,7 +128,7 @@ export function Nav() {
         </div>
       </header>
 
-      {/* MOBILE TOP HEADER */}
+      {/* MOBILE HEADER */}
       <header className="sticky top-0 z-40 w-full glass-nav md:hidden flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center">
           <Image src="/logo-black.png" alt={SITE_NAME} width={100} height={25} className="h-6 w-auto block dark:hidden" />
@@ -135,7 +145,7 @@ export function Nav() {
         </div>
       </header>
 
-      {/* FLOATING LIQUID GLASS DOCK */}
+      {/* MOBILE DOCK */}
       <div className="floating-dock md:hidden">
         <Link href="/marketplace" onClick={handleBrowseClick} className={cn("dock-item", pathname === '/marketplace' && "active")}>
           <Search />
@@ -144,7 +154,7 @@ export function Nav() {
 
         <Link href={session ? homeHref : '/'} className={cn("dock-item", pathname === homeHref && "active")}>
           {isSeller ? <LayoutDashboard /> : <Home />}
-          <span>{isSeller ? 'Dash' : 'Home'}</span>
+          <span>{isSeller ? (sellerIsUnpaid ? 'Pay' : 'Dash') : 'Home'}</span>
         </Link>
 
         {session ? (
@@ -159,7 +169,7 @@ export function Nav() {
           </Link>
         )}
 
-        {isSeller ? (
+        {isSeller && !sellerIsUnpaid ? (
           <Link href="/listings/new" className={cn("dock-item", pathname === '/listings/new' && "active")}>
             <PlusCircle />
             <span>Add</span>
@@ -177,7 +187,7 @@ export function Nav() {
         </button>
       </div>
 
-      {/* AUTH PROMPT OVERLAY */}
+      {/* AUTH PROMPT */}
       {showAuthPrompt && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 md:hidden" onClick={() => setShowAuthPrompt(false)}>
           <div className="w-full max-w-sm rounded-3xl glass-card p-8 text-center animate-slide-up-menu" onClick={(e) => e.stopPropagation()}>
@@ -185,7 +195,7 @@ export function Nav() {
               <Sparkles className="h-8 w-8 text-primary" />
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">Unlock the Marketplace</h2>
-            <p className="text-sm text-muted-foreground mb-8">Sign up to browse all fantastic products at PrimeMart and connect with verified sellers.</p>
+            <p className="text-sm text-muted-foreground mb-8">Sign up to browse all fantastic products at PrimeMart.</p>
             <Link href="/signup" className="flex w-full items-center justify-center rounded-xl bg-primary py-3.5 font-semibold text-primary-foreground shadow-lg shadow-primary/20 mb-3">
               Create Free Account
             </Link>
@@ -196,7 +206,7 @@ export function Nav() {
         </div>
       )}
 
-      {/* MOBILE "MORE" MENU */}
+      {/* MORE MENU */}
       {menuOpen && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setMenuOpen(false)}>
           <div 
