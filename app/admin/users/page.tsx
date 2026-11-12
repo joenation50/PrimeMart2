@@ -12,6 +12,7 @@ import { formatDate } from '@/lib/format';
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -23,18 +24,18 @@ export default function AdminUsersPage() {
   async function fetchUsers() {
     const supabase = createBrowserSupabase();
     
-    // Fetch users with their related listings, reviews, and payments counts
-    const { data } = await supabase
+    // SIMPLE QUERY: Fetch all user data without complex joins
+    const { data, error } = await supabase
       .from('users')
-      .select(`
-        *,
-        listings(count),
-        reviews(count),
-        payments(count)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
       
-    setUsers(data || []);
+    if (error) {
+      console.error("Database Error:", error);
+      setError(error.message);
+    } else {
+      setUsers(data || []);
+    }
     setLoading(false);
   }
 
@@ -57,19 +58,33 @@ export default function AdminUsersPage() {
     setActionLoading(null);
   }
 
+  async function extendSubscription(userId: string, currentExpiry: string) {
+    setActionLoading(userId);
+    const supabase = createBrowserSupabase();
+    const baseDate = currentExpiry ? new Date(currentExpiry) : new Date();
+    baseDate.setFullYear(baseDate.getFullYear() + 1);
+
+    await supabase.from('users').update({
+      seller_expires_at: baseDate.toISOString(),
+      seller_status: 'active'
+    }).eq('id', userId);
+    
+    await fetchUsers();
+    if (selectedUser) setSelectedUser({ ...selectedUser, seller_expires_at: baseDate.toISOString() });
+    setActionLoading(null);
+  }
+
   async function toggleBan(userId: string, currentStatus: string) {
     setActionLoading(userId);
     const supabase = createBrowserSupabase();
     const newStatus = currentStatus === 'banned' ? 'active' : 'banned';
     await supabase.from('users').update({ account_status: newStatus }).eq('id', userId);
     await fetchUsers();
-    if (selectedUser) {
-      setSelectedUser({ ...selectedUser, account_status: newStatus });
-    }
+    if (selectedUser) setSelectedUser({ ...selectedUser, account_status: newStatus });
     setActionLoading(null);
   }
 
-  // Filter users based on search
+  // Search Logic
   const filteredUsers = users.filter((u) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -99,6 +114,13 @@ export default function AdminUsersPage() {
           />
         </div>
       </div>
+
+      {error && (
+        <div className="mb-6 rounded-xl bg-red-500/10 p-4 text-red-500 border border-red-500/20">
+          <p className="font-bold">Database Error:</p>
+          <p>{error}</p>
+        </div>
+      )}
       
       {/* USERS TABLE */}
       <div className="glass-card rounded-2xl overflow-hidden">
@@ -107,8 +129,9 @@ export default function AdminUsersPage() {
             <thead className="bg-secondary/50 border-b border-border">
               <tr>
                 <th className="px-6 py-4 font-semibold">User</th>
-                <th className="px-6 py-4 font-semibold">Seller Code</th>
+                <th className="px-6 py-4 font-semibold">Code</th>
                 <th className="px-6 py-4 font-semibold">Role & Status</th>
+                <th className="px-6 py-4 font-semibold">Expiry</th>
                 <th className="px-6 py-4 font-semibold text-right">Action</th>
               </tr>
             </thead>
@@ -130,16 +153,19 @@ export default function AdminUsersPage() {
                     </span>
                     {u.account_status === 'banned' && <span className="ml-2 text-xs text-red-500 font-bold">BANNED</span>}
                   </td>
+                  <td className="px-6 py-4 text-xs">
+                    {u.seller_expires_at ? formatDate(u.seller_expires_at) : '—'}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <button className="text-xs font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-secondary">
-                      View Full Profile
+                      View Profile
                     </button>
                   </td>
                 </tr>
               ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
                     No users found matching "{searchQuery}"
                   </td>
                 </tr>
@@ -149,7 +175,7 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* FULL USER PROFILE MODAL */}
+      {/* FULL USER PROFILE MODAL (All 20+ fields) */}
       {selectedUser && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setSelectedUser(null)}>
           <div 
@@ -204,7 +230,6 @@ export default function AdminUsersPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Activity</h3>
                 <div className="flex items-center gap-3"><Star className="h-4 w-4 text-muted-foreground" /> <span>Rating: {selectedUser.rating_avg} ({selectedUser.rating_count} reviews)</span></div>
-                <div className="flex items-center gap-3"><Store className="h-4 w-4 text-muted-foreground" /> <span>Listings: {selectedUser.listings?.[0]?.count || 0}</span></div>
                 <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <span>Joined: {formatDate(selectedUser.created_at)}</span></div>
                 <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground" /> <span>Last Active: {formatDate(selectedUser.last_active_at)}</span></div>
               </div>
@@ -223,6 +248,11 @@ export default function AdminUsersPage() {
               {selectedUser.role === 'buyer' && (
                 <button onClick={() => makeSeller(selectedUser.id)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2">
                   {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />} Upgrade to Seller
+                </button>
+              )}
+              {selectedUser.role === 'seller' && (
+                <button onClick={() => extendSubscription(selectedUser.id, selectedUser.seller_expires_at)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-2">
+                  {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} +1 Year Subscription
                 </button>
               )}
               <button onClick={() => toggleBan(selectedUser.id, selectedUser.account_status)} disabled={actionLoading === selectedUser.id} className={`flex-1 rounded-xl py-3 text-sm font-semibold border flex items-center justify-center gap-2 ${
