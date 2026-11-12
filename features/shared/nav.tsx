@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { 
-  Bell, User, LogOut, LayoutDashboard, Heart, 
+  Bell, User, LogOut, LayoutDashboard, Heart, Shield, 
   Sun, Moon, Home, Search, MoreHorizontal, 
   ChevronRight, PlusCircle, Sparkles
 } from 'lucide-react';
@@ -65,7 +65,6 @@ export function Nav() {
   const isSeller = profile?.role === 'seller' || isAdmin;
   const isBuyer = profile?.role === 'buyer';
 
-  // If seller is unpaid, their home is the paywall
   const sellerIsUnpaid = isSeller && (profile?.seller_status === 'unpaid' || profile?.seller_status === 'pending');
   const homeHref = isSeller ? (sellerIsUnpaid ? '/paywall' : '/dashboard') : '/buyer';
 
@@ -91,6 +90,13 @@ export function Nav() {
             
             <nav className="flex items-center gap-6">
               <Link href="/marketplace" className={cn('text-sm font-medium transition', pathname === '/marketplace' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Marketplace</Link>
+              
+              {isAdmin && (
+                <Link href="/admin" className={cn('flex items-center gap-1.5 text-sm font-bold text-primary transition hover:text-primary/80', pathname.startsWith('/admin') && 'underline decoration-2 underline-offset-4')}>
+                  <Shield className="h-4 w-4" /> Admin Panel
+                </Link>
+              )}
+
               {isSeller && !sellerIsUnpaid && <Link href="/dashboard" className={cn('text-sm font-medium transition', pathname.startsWith('/dashboard') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Dashboard</Link>}
               {isSeller && sellerIsUnpaid && <Link href="/paywall" className={cn('text-sm font-medium transition', pathname.startsWith('/paywall') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Activate Account</Link>}
               {isBuyer && <Link href="/buyer" className={cn('text-sm font-medium transition', pathname.startsWith('/buyer') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>My Hub</Link>}
@@ -222,6 +228,14 @@ export function Nav() {
                     <p className="text-xs text-muted-foreground capitalize">{isAdmin ? 'Admin' : isSeller ? 'Seller' : 'Buyer'}</p>
                   </div>
 
+                  {/* ADMIN LINK IN MORE MENU */}
+                  {isAdmin && (
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 bg-primary/10 text-primary mb-2">
+                      <div className="flex items-center gap-3"><Shield className="h-5 w-5" /><span className="font-bold">Admin Panel</span></div>
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  )}
+
                   <Link href="/account" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                     <div className="flex items-center gap-3"><User className="h-5 w-5 text-muted-foreground" /><span className="font-medium">My Profile</span></div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -232,15 +246,6 @@ export function Nav() {
                       <div className="flex items-center gap-3"><Heart className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Saved Items</span></div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </Link>
-                  )}
-
-                  {isAdmin && (
-                    <>
-                      <div className="my-2 h-px bg-border" />
-                      <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><LayoutDashboard className="h-5 w-5 text-primary" /><span className="font-medium text-primary">Admin Panel</span></div>
-                      </Link>
-                    </>
                   )}
 
                   <div className="my-2 h-px bg-border" />

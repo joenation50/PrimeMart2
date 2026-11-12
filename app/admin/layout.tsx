@@ -1,18 +1,59 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Settings, FileText, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, FileText, AlertTriangle, Loader2 } from 'lucide-react';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // 1. If we are on the login page, render ONLY the login form (no sidebar)
+  useEffect(() => {
+    async function checkAdmin() {
+      const supabase = createBrowserSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        window.location.href = '/admin/login';
+        return;
+      }
+
+      // Strict database check
+      const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
+
+      if (profile?.role !== 'admin') {
+        // If they are not an admin, forcefully kick them out
+        window.location.href = '/admin/login'; 
+        return;
+      }
+
+      setIsAdmin(true);
+      setLoading(false);
+    }
+
+    if (pathname === '/admin/login') {
+      setLoading(false);
+      return;
+    }
+
+    checkAdmin();
+  }, [pathname]);
+
   if (pathname === '/admin/login') {
     return <div className="min-h-screen bg-background">{children}</div>;
   }
 
-  // 2. Navigation items for the sidebar
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   const navItems = [
     { href: '/admin', label: 'Approval Queue', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Users & Sellers', icon: Users },
@@ -23,7 +64,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      {/* SIDEBAR */}
       <aside className="w-64 border-r border-border glass-card p-4 hidden md:block">
         <div className="mb-8 px-4 pt-4">
           <h2 className="text-lg font-bold tracking-tight">PrimeMart Admin</h2>
@@ -36,9 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href} 
                 href={item.href} 
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-                  isActive 
-                    ? 'bg-primary/10 text-primary' 
-                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                 }`}
               >
                 <item.icon className="h-4 w-4" />
@@ -48,8 +86,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
       </aside>
-
-      {/* MAIN CONTENT AREA */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
         <div className="mx-auto max-w-6xl">
           {children}

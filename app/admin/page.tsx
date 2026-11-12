@@ -2,202 +2,58 @@
 
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { ListingGrid, SkeletonGrid } from '@/features/marketplace/grid';
-import { Search, SlidersHorizontal, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import Link from 'next/link';
-import Image from 'next/image';
+import { PaymentReview } from '@/features/admin/PaymentReview';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 
-const CATEGORIES = ['All', 'Fashion', 'Electronics', 'Home', 'Services', 'Vehicles'];
-
-export default function MarketplacePage() {
-  const [listings, setListings] = useState<any[]>([]);
-  const [banners, setBanners] = useState<any[]>([]); // Changed to array
+export default function AdminDashboard() {
+  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [sortBy, setSortBy] = useState('newest');
 
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
+    async function fetchPayments() {
       const supabase = createBrowserSupabase();
-      
-      // 1. Fetch ALL Active Banners
-      const { data: bannersData } = await supabase
-        .from('banners')
-        .select('*')
-        .eq('active', true)
-        .order('created_at', { ascending: false });
-      
-      if (bannersData) setBanners(bannersData);
-
-      // 2. Fetch Listings
-      let query = supabase
-        .from('listings')
+      const { data } = await supabase
+        .from('payments')
         .select(`
           *,
-          users(name, verification_level),
-          seller_profiles(business_name)
+          user:seller_id(name, email, seller_code, country)
         `)
-        .eq('status', 'active');
+        .eq('status', 'pending_review')
+        .order('submitted_at', { ascending: true });
 
-      if (searchQuery) {
-        query = query.ilike('title', `%${searchQuery}%`);
-      }
-
-      if (activeCategory !== 'All') {
-        query = query.eq('category', activeCategory.toLowerCase()); 
-      }
-
-      if (sortBy === 'newest') {
-        query = query.order('created_at', { ascending: false });
-      } else if (sortBy === 'price_low') {
-        query = query.order('price', { ascending: true });
-      } else if (sortBy === 'price_high') {
-        query = query.order('price', { ascending: false });
-      }
-
-      const { data, error } = await query;
-
-      if (!error && data) {
-        setListings(data);
-      }
+      setPayments(data || []);
       setLoading(false);
     }
+    fetchPayments();
+  }, []);
 
-    const timer = setTimeout(() => fetchData(), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, activeCategory, sortBy]);
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div>
+      <h1 className="mb-8 text-2xl font-bold text-foreground">Pending Payments</h1>
       
-      {/* MULTIPLE BANNERS CAROUSEL */}
-      {banners.length > 0 && (
-        <div className="mx-auto max-w-7xl px-4 pt-6">
-          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {banners.map((banner) => (
-              <Link 
-                key={banner.id}
-                href={banner.cta_url || '/marketplace'} 
-                className="group relative flex min-h-[160px] w-full shrink-0 snap-center overflow-hidden rounded-3xl border border-border bg-primary"
-              >
-                {banner.image_url && banner.image_url !== 'placeholder' ? (
-                  <Image
-                    src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_1200,h_400,c_fill,q_auto,f_auto/${banner.image_url}`}
-                    alt={banner.headline}
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600" />
-                )}
-                
-                <div className="absolute inset-0 bg-black/40" />
-                
-                <div className="relative z-10 flex w-full items-center justify-between p-6 sm:p-10">
-                  <div>
-                    <h2 className="text-xl font-bold text-white sm:text-3xl">{banner.headline}</h2>
-                    {banner.subtext && <p className="mt-2 text-sm text-white/90 sm:text-base">{banner.subtext}</p>}
-                  </div>
-                  {banner.cta_text && (
-                    <span className="hidden shrink-0 rounded-full bg-white px-6 py-3 text-sm font-bold text-black transition-transform group-hover:scale-105 sm:flex items-center gap-2">
-                      {banner.cta_text} <ArrowRight className="h-4 w-4" />
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
+      {payments.length === 0 ? (
+        <div className="rounded-xl border border-border glass-card p-12 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
+            <CheckCircle2 className="h-8 w-8 text-green-500" />
           </div>
-          
-          {/* Dots indicator if there are multiple banners */}
-          {banners.length > 1 && (
-            <div className="flex justify-center gap-1.5 mt-2">
-              {banners.map((_, i) => (
-                <div key={i} className="h-1.5 w-1.5 rounded-full bg-border" />
-              ))}
-            </div>
-          )}
+          <h2 className="text-xl font-bold text-foreground">All caught up!</h2>
+          <p className="text-muted-foreground mt-2">There are no pending payments to review right now.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {payments.map((payment) => (
+            <PaymentReview key={payment.id} payment={payment} />
+          ))}
         </div>
       )}
-
-      {/* HEADER SECTION */}
-      <div className="relative overflow-hidden pt-8 pb-8">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-primary/10 blur-[120px] pointer-events-none" />
-        
-        <div className="relative mx-auto max-w-7xl px-4">
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">Marketplace</h1>
-          <p className="mt-2 text-lg text-muted-foreground">Discover premium products from verified sellers.</p>
-
-          {/* SEARCH BAR */}
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 max-w-3xl">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-full border border-border bg-background pl-12 pr-6 py-4 text-sm outline-none transition focus:border-primary shadow-sm"
-              />
-            </div>
-            
-            {/* SORT DROPDOWN */}
-            <div className="relative flex items-center">
-              <SlidersHorizontal className="absolute left-4 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <select 
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full sm:w-auto appearance-none rounded-full border border-border bg-background pl-10 pr-10 py-4 text-sm font-medium outline-none transition focus:border-primary shadow-sm cursor-pointer"
-              >
-                <option value="newest">Newest Arrivals</option>
-                <option value="price_low">Price: Low to High</option>
-                <option value="price_high">Price: High to Low</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* CATEGORY CHIPS */}
-      <div className="sticky top-16 z-30 glass-nav border-b border-border">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex gap-2 overflow-x-auto py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={cn(
-                  "whitespace-nowrap rounded-full px-5 py-2 text-sm font-medium transition-all",
-                  activeCategory === cat 
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
-                    : "bg-secondary/50 text-foreground hover:bg-secondary"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* GRID RESULTS */}
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        {loading ? (
-          <SkeletonGrid count={8} />
-        ) : listings.length === 0 ? (
-          <div className="rounded-3xl border border-border glass-card py-32 text-center animate-fade-in">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-              <Search className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h2 className="text-xl font-bold text-foreground">No products found</h2>
-            <p className="mt-2 text-muted-foreground">Try adjusting your search or category filters.</p>
-          </div>
-        ) : (
-          <ListingGrid listings={listings} showFavorites={true} />
-        )}
-      </div>
     </div>
   );
 }
