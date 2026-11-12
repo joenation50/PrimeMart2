@@ -1,30 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { loginAction, signupAction } from '@/app/actions/auth';
+import { loginAction, signupAction } from '@/actions/auth';
 import { Loader2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const searchParams = useSearchParams();
   const next = searchParams.get('next') ?? '/dashboard';
   
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
-    setLoading(true);
     setError(null);
+    
+    startTransition(async () => {
+      const result = mode === 'login' 
+        ? await loginAction(formData) 
+        : await signupAction(formData);
 
-    const result = mode === 'login' 
-      ? await loginAction(formData) 
-      : await signupAction(formData);
-
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    }
+      if (result?.error) {
+        setError(result.error);
+      }
+    });
   }
 
   return (
@@ -70,10 +70,16 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={isPending}
           className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
+          {isPending ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : mode === 'login' ? (
+            'Sign in'
+          ) : (
+            'Create account'
+          )}
         </button>
       </form>
 
