@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { 
-  Loader2, Store, Search, User, Mail, Phone, MapPin, 
+  Loader2, Store, Search, User, Phone, 
   ShieldCheck, Calendar, Clock, Star, AlertTriangle, 
-  CreditCard, CheckCircle2, X, Globe, ShieldAlert
+  CreditCard, CheckCircle2, X, Globe, ShieldAlert,
+  ExternalLink, Shield, UserMinus
 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+import Link from 'next/link';
+import Image from 'next/image';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -24,10 +27,10 @@ export default function AdminUsersPage() {
   async function fetchUsers() {
     const supabase = createBrowserSupabase();
     
-    // SIMPLE QUERY: Fetch all user data without complex joins
+    // Fetch users AND their seller profile data (for the logo)
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select('*, seller_profiles(business_name, logo_url)')
       .order('created_at', { ascending: false });
       
     if (error) {
@@ -58,6 +61,22 @@ export default function AdminUsersPage() {
     setActionLoading(null);
   }
 
+  async function demoteToBuyer(userId: string) {
+    if (!confirm('Demote this user back to a Buyer? They will lose their store and seller status.')) return;
+    setActionLoading(userId);
+    const supabase = createBrowserSupabase();
+
+    await supabase.from('users').update({
+      role: 'buyer',
+      seller_status: null,
+      seller_expires_at: null
+    }).eq('id', userId);
+    
+    await fetchUsers();
+    setSelectedUser(null);
+    setActionLoading(null);
+  }
+
   async function extendSubscription(userId: string, currentExpiry: string) {
     setActionLoading(userId);
     const supabase = createBrowserSupabase();
@@ -81,6 +100,16 @@ export default function AdminUsersPage() {
     await supabase.from('users').update({ account_status: newStatus }).eq('id', userId);
     await fetchUsers();
     if (selectedUser) setSelectedUser({ ...selectedUser, account_status: newStatus });
+    setActionLoading(null);
+  }
+
+  async function toggleVerification(userId: string, currentLevel: string) {
+    setActionLoading(userId);
+    const supabase = createBrowserSupabase();
+    const newLevel = currentLevel === 'verified' ? 'unverified' : 'verified';
+    await supabase.from('users').update({ verification_level: newLevel }).eq('id', userId);
+    await fetchUsers();
+    if (selectedUser) setSelectedUser({ ...selectedUser, verification_level: newLevel });
     setActionLoading(null);
   }
 
@@ -136,33 +165,48 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-secondary/20 cursor-pointer" onClick={() => setSelectedUser(u)}>
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-foreground">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">{u.email}</p>
-                  </td>
-                  <td className="px-6 py-4 font-mono text-xs">{u.seller_code}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      u.role === 'admin' ? 'bg-primary/10 text-primary' :
-                      u.role === 'seller' ? 'bg-blue-500/10 text-blue-500' :
-                      'bg-secondary text-muted-foreground'
-                    }`}>
-                      {u.role.toUpperCase()}
-                    </span>
-                    {u.account_status === 'banned' && <span className="ml-2 text-xs text-red-500 font-bold">BANNED</span>}
-                  </td>
-                  <td className="px-6 py-4 text-xs">
-                    {u.seller_expires_at ? formatDate(u.seller_expires_at) : '—'}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-xs font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-secondary">
-                      View Profile
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filteredUsers.map((u) => {
+                const avatar = u.seller_profiles?.logo_url || u.avatar_url;
+                return (
+                  <tr key={u.id} className="hover:bg-secondary/20 cursor-pointer" onClick={() => setSelectedUser(u)}>
+                    <td className="px-6 py-4 flex items-center gap-3">
+                      <div className="relative h-10 w-10 shrink-0 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                         {avatar ? (
+                           <Image src={avatar} alt="Avatar" fill className="object-cover" />
+                         ) : (
+                           <span className="font-bold text-muted-foreground">{u.name?.charAt(0).toUpperCase()}</span>
+                         )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground flex items-center gap-1">
+                          {u.name}
+                          {u.verification_level === 'verified' && <ShieldCheck className="h-3 w-3 text-primary" />}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-mono text-xs">{u.seller_code}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        u.role === 'admin' ? 'bg-primary/10 text-primary' :
+                        u.role === 'seller' ? 'bg-blue-500/10 text-blue-500' :
+                        'bg-secondary text-muted-foreground'
+                      }`}>
+                        {u.role.toUpperCase()}
+                      </span>
+                      {u.account_status === 'banned' && <span className="ml-2 text-xs text-red-500 font-bold">BANNED</span>}
+                    </td>
+                    <td className="px-6 py-4 text-xs">
+                      {u.seller_expires_at ? formatDate(u.seller_expires_at) : '—'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="text-xs font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-secondary">
+                        View Profile
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
@@ -175,7 +219,7 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* FULL USER PROFILE MODAL (All 20+ fields) */}
+      {/* FULL USER PROFILE MODAL */}
       {selectedUser && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setSelectedUser(null)}>
           <div 
@@ -185,11 +229,18 @@ export default function AdminUsersPage() {
             {/* Modal Header */}
             <div className="flex justify-between items-start mb-6 border-b border-border pb-6">
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
-                  {selectedUser.name.charAt(0).toUpperCase()}
+                <div className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary overflow-hidden border-2 border-primary/20">
+                  {selectedUser.seller_profiles?.logo_url || selectedUser.avatar_url ? (
+                    <Image src={selectedUser.seller_profiles?.logo_url || selectedUser.avatar_url} alt="Avatar" fill className="object-cover" />
+                  ) : (
+                    selectedUser.name.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">{selectedUser.name}</h2>
+                  <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                    {selectedUser.name}
+                    {selectedUser.verification_level === 'verified' && <ShieldCheck className="h-5 w-5 text-primary" />}
+                  </h2>
                   <p className="text-muted-foreground">{selectedUser.email}</p>
                 </div>
               </div>
@@ -208,19 +259,21 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <span>Phone: {selectedUser.phone || '—'}</span></div>
                 <div className="flex items-center gap-3"><Globe className="h-4 w-4 text-muted-foreground" /> <span>Country: {selectedUser.country}</span></div>
                 <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground" /> <span>Timezone: {selectedUser.timezone}</span></div>
-                <div className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-muted-foreground" /> <span>Auth: {selectedUser.auth_method}</span></div>
                 <div className="flex items-center gap-3"><CreditCard className="h-4 w-4 text-muted-foreground" /> <span>Code: <span className="font-mono font-bold text-primary">{selectedUser.seller_code}</span></span></div>
               </div>
 
               {/* Status & Permissions */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Status</h3>
-                <div className="flex items-center gap-3"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> <span>Account: {selectedUser.account_status || 'active'}</span></div>
-                <div className="flex items-center gap-3"><Store className="h-4 w-4 text-muted-foreground" /> <span>Role: {selectedUser.role}</span></div>
-                <div className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-muted-foreground" /> <span>Verification: {selectedUser.verification_level}</span></div>
+                <div className="flex items-center gap-3"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> <span className="capitalize">Account: {selectedUser.account_status || 'active'}</span></div>
+                <div className="flex items-center gap-3"><Store className="h-4 w-4 text-muted-foreground" /> <span className="capitalize">Role: {selectedUser.role}</span></div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className={`h-4 w-4 ${selectedUser.verification_level === 'verified' ? 'text-primary' : 'text-muted-foreground'}`} /> 
+                  <span className="capitalize">Verification: {selectedUser.verification_level}</span>
+                </div>
                 {selectedUser.role === 'seller' && (
                   <>
-                    <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <span>Seller Status: {selectedUser.seller_status}</span></div>
+                    <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <span className="capitalize">Seller Status: {selectedUser.seller_status}</span></div>
                     <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <span>Expires: {selectedUser.seller_expires_at ? formatDate(selectedUser.seller_expires_at) : '—'}</span></div>
                   </>
                 )}
@@ -229,7 +282,7 @@ export default function AdminUsersPage() {
               {/* Stats */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Activity</h3>
-                <div className="flex items-center gap-3"><Star className="h-4 w-4 text-muted-foreground" /> <span>Rating: {selectedUser.rating_avg} ({selectedUser.rating_count} reviews)</span></div>
+                <div className="flex items-center gap-3"><Star className="h-4 w-4 text-muted-foreground" /> <span>Rating: {selectedUser.rating_avg || 0} ({selectedUser.rating_count || 0} reviews)</span></div>
                 <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <span>Joined: {formatDate(selectedUser.created_at)}</span></div>
                 <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground" /> <span>Last Active: {formatDate(selectedUser.last_active_at)}</span></div>
               </div>
@@ -238,28 +291,55 @@ export default function AdminUsersPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Preferences</h3>
                 <pre className="text-xs bg-secondary/50 p-3 rounded-lg overflow-x-auto">
-                  {JSON.stringify(selectedUser.notification_preferences, null, 2)}
+                  {JSON.stringify(selectedUser.notification_preferences || {}, null, 2)}
                 </pre>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="mt-8 pt-6 border-t border-border flex flex-wrap gap-3">
-              {selectedUser.role === 'buyer' && (
-                <button onClick={() => makeSeller(selectedUser.id)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2">
-                  {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />} Upgrade to Seller
+            <div className="mt-8 pt-6 border-t border-border space-y-3">
+              
+              <div className="flex flex-wrap gap-3">
+                {/* View Store */}
+                {selectedUser.role === 'seller' && (
+                  <Link href={`/store/${selectedUser.store_slug || selectedUser.seller_code}`} target="_blank" className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-2">
+                    <ExternalLink className="h-4 w-4" /> View Public Store
+                  </Link>
+                )}
+
+                {/* Verification Toggle */}
+                <button onClick={() => toggleVerification(selectedUser.id, selectedUser.verification_level)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-2">
+                  {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />} 
+                  {selectedUser.verification_level === 'verified' ? 'Remove Verification' : 'Verify User'}
                 </button>
-              )}
-              {selectedUser.role === 'seller' && (
-                <button onClick={() => extendSubscription(selectedUser.id, selectedUser.seller_expires_at)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-2">
-                  {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} +1 Year Subscription
-                </button>
-              )}
-              <button onClick={() => toggleBan(selectedUser.id, selectedUser.account_status)} disabled={actionLoading === selectedUser.id} className={`flex-1 rounded-xl py-3 text-sm font-semibold border flex items-center justify-center gap-2 ${
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {/* Upgrade / Demote */}
+                {selectedUser.role === 'buyer' ? (
+                  <button onClick={() => makeSeller(selectedUser.id)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2">
+                    {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />} Upgrade to Seller
+                  </button>
+                ) : (
+                  <button onClick={() => demoteToBuyer(selectedUser.id)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl border border-orange-500 text-orange-500 hover:bg-orange-500/10 py-3 text-sm font-semibold flex items-center justify-center gap-2">
+                    {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />} Demote to Buyer
+                  </button>
+                )}
+
+                {/* Extend Subscription */}
+                {selectedUser.role === 'seller' && (
+                  <button onClick={() => extendSubscription(selectedUser.id, selectedUser.seller_expires_at)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-2">
+                    {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} +1 Year Subscription
+                  </button>
+                )}
+              </div>
+
+              {/* Ban / Unban */}
+              <button onClick={() => toggleBan(selectedUser.id, selectedUser.account_status)} disabled={actionLoading === selectedUser.id} className={`w-full rounded-xl py-3 text-sm font-semibold border flex items-center justify-center gap-2 ${
                 selectedUser.account_status === 'banned' ? 'border-green-500 text-green-500 hover:bg-green-500/10' : 'border-red-500 text-red-500 hover:bg-red-500/10'
               }`}>
                 {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
-                {selectedUser.account_status === 'banned' ? 'Unban User' : 'Ban User'}
+                {selectedUser.account_status === 'banned' ? 'Unban User' : 'Ban / Suspend User'}
               </button>
             </div>
 

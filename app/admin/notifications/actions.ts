@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 
 export async function sendNotification(data: {
   target: 'all' | 'specific';
-  email?: string;
+  userId?: string; // Changed from email to userId
   title: string;
   body: string;
 }) {
@@ -19,18 +19,10 @@ export async function sendNotification(data: {
 
   // 1. Send to a specific user
   if (data.target === 'specific') {
-    if (!data.email) return { error: 'Email is required' };
-    
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', data.email)
-      .single();
-
-    if (!user) return { error: 'User not found with that email' };
+    if (!data.userId) return { error: 'Please select a user' };
 
     const { error } = await supabase.from('notifications').insert({
-      user_id: user.id,
+      user_id: data.userId,
       title: data.title,
       body: data.body,
     });
@@ -38,25 +30,18 @@ export async function sendNotification(data: {
     if (error) return { error: error.message };
   }
 
-  // 2. Send to everyone (Broadcast)
+  // 2. Send to everyone (Broadcast via Row Duplication)
   if (data.target === 'all') {
-    // Get all user IDs
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id');
-
+    const { data: users, error: usersError } = await supabase.from('users').select('id');
     if (usersError || !users) return { error: 'Failed to fetch users' };
 
-    // Create an array of notifications (one for each user)
     const notifications = users.map(u => ({
       user_id: u.id,
       title: data.title,
       body: data.body,
     }));
 
-    // Insert them all at once
     const { error } = await supabase.from('notifications').insert(notifications);
-    
     if (error) return { error: error.message };
   }
 

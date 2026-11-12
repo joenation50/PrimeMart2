@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Store, Loader2, CheckCircle2, UploadCloud } from 'lucide-react';
 import Image from 'next/image';
-import imageCompression from 'browser-image-compression';
 
 export default function AdminStoreSettings() {
   const [loading, setLoading] = useState(true);
@@ -47,30 +46,26 @@ export default function AdminStoreSettings() {
     if (!file) return;
 
     setUploading(true);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'primemart_preset');
+
     try {
-      const compressed = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 800 });
-      
-      const sigRes = await fetch('/api/cloudinary/sign', { method: 'POST' });
-      const sigData = await sigRes.json();
-
-      const uploadData = new FormData();
-      uploadData.append('file', compressed);
-      uploadData.append('api_key', sigData.apiKey);
-      uploadData.append('timestamp', sigData.timestamp.toString());
-      uploadData.append('signature', sigData.signature);
-      uploadData.append('folder', 'primemart/avatars');
-
-      const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
+      // Direct upload to Cloudinary using your actual Cloud Name
+      const res = await fetch(`https://api.cloudinary.com/v1_1/za4q8nqh/image/upload`, {
         method: 'POST',
-        body: uploadData,
+        body: formData,
       });
       
-      const cloudData = await cloudRes.json();
-      if (cloudRes.ok) {
-        setProfile({ ...profile, avatar_url: cloudData.public_id });
+      const data = await res.json();
+      if (data.secure_url) {
+        setProfile(prev => ({ ...prev, avatar_url: data.secure_url }));
+      } else {
+        alert('Upload failed: ' + (data.error?.message || 'Unknown error'));
       }
     } catch (err) {
-      alert('Image upload failed');
+      alert('Image upload failed. Check your connection.');
     } finally {
       setUploading(false);
     }
@@ -120,7 +115,8 @@ export default function AdminStoreSettings() {
         <div className="flex items-center gap-6">
           <div className="relative h-24 w-24 overflow-hidden rounded-full bg-secondary flex items-center justify-center border border-border">
             {profile.avatar_url ? (
-              <Image src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_200,h_200,c_fill,r_max,q_auto,f_auto/${profile.avatar_url}`} alt="Avatar" fill className="object-cover" />
+              // Uses the full URL directly from Cloudinary
+              <Image src={profile.avatar_url} alt="Avatar" fill className="object-cover" />
             ) : (
               <Store className="h-8 w-8 text-muted-foreground" />
             )}
@@ -131,7 +127,7 @@ export default function AdminStoreSettings() {
               {uploading ? 'Uploading...' : 'Upload Logo'}
               <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
             </label>
-            <p className="text-xs text-muted-foreground mt-2">JPG, PNG max 1MB.</p>
+            <p className="text-xs text-muted-foreground mt-2">JPG, PNG max 5MB.</p>
           </div>
         </div>
 

@@ -9,6 +9,7 @@ import {
   RefreshCw, Share2,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ type Profile = {
   verification_level: string | null;
   seller_profiles: {
     business_name: string | null;
+    logo_url: string | null;
   } | null;
 };
 
@@ -53,13 +55,12 @@ export default function SellerAccountPage() {
       if (cancelled) return;
       if (!user) { router.replace('/login'); return; }
 
-      // We now JOIN the seller_profiles table to get the business_name
       const { data, error } = await supabase
         .from('users')
         .select(`
           id, name, email, phone, role, seller_code, store_slug, 
           seller_status, seller_expires_at, verification_level,
-          seller_profiles(business_name)
+          seller_profiles(business_name, logo_url)
         `)
         .eq('id', user.id)
         .single();
@@ -114,7 +115,6 @@ export default function SellerAccountPage() {
   }
 
   async function shareStore() {
-    // Use slug first, fallback to code
     const identifier = profile?.store_slug || profile?.seller_code;
     if (!identifier) return;
 
@@ -163,10 +163,9 @@ export default function SellerAccountPage() {
     );
   }
 
-  // USE BUSINESS NAME HERE instead of profile.name
   const displayName = profile.seller_profiles?.business_name || profile.name || 'Unnamed seller';
+  const logoUrl = profile.seller_profiles?.logo_url;
   const initial = displayName.charAt(0).toUpperCase();
-  
   const isVerified = profile.verification_level === 'verified';
   const status = profile.seller_status ?? 'unknown';
   const needsRenewal =
@@ -184,12 +183,15 @@ export default function SellerAccountPage() {
         {/* Identity */}
         <div className="glass-card rounded-3xl p-8">
           <div className="flex items-center gap-4 mb-6">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
-              {initial}
+            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground overflow-hidden">
+              {logoUrl ? (
+                <Image src={logoUrl} alt={displayName} fill className="object-cover" />
+              ) : (
+                initial
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Display the Business Name */}
                 <h2 className="text-xl font-semibold truncate">{displayName}</h2>
                 {isVerified && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
@@ -243,9 +245,6 @@ export default function SellerAccountPage() {
                 {shared ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
                 {shared ? 'Link copied' : 'Share store link'}
               </button>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Share your store link with buyers so they can find your storefront.
-              </p>
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -313,26 +312,21 @@ export default function SellerAccountPage() {
           <Link href="/seller/listings" className="glass-card rounded-2xl p-5 hover:bg-secondary/50 transition-colors">
             <Package className="h-6 w-6 text-primary mb-3" />
             <p className="font-semibold text-foreground text-sm">My Listings</p>
-            <p className="text-xs text-muted-foreground mt-1">Manage your products</p>
           </Link>
           <Link href="/seller/analytics" className="glass-card rounded-2xl p-5 hover:bg-secondary/50 transition-colors">
             <BarChart3 className="h-6 w-6 text-primary mb-3" />
             <p className="font-semibold text-foreground text-sm">Analytics</p>
-            <p className="text-xs text-muted-foreground mt-1">Views & clicks</p>
           </Link>
           
-          {/* UPDATED PUBLIC STORE LINK */}
           {storeIdentifier ? (
             <Link href={`/store/${storeIdentifier}`} className="glass-card rounded-2xl p-5 hover:bg-secondary/50 transition-colors">
               <ExternalLink className="h-6 w-6 text-primary mb-3" />
               <p className="font-semibold text-foreground text-sm">Public Store</p>
-              <p className="text-xs text-muted-foreground mt-1">What buyers see</p>
             </Link>
           ) : (
             <div className="glass-card rounded-2xl p-5 opacity-60">
               <ExternalLink className="h-6 w-6 text-muted-foreground mb-3" />
               <p className="font-semibold text-foreground text-sm">Public Store</p>
-              <p className="text-xs text-muted-foreground mt-1">Available after activation</p>
             </div>
           )}
         </div>

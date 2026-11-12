@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Users, Settings, FileText, AlertTriangle, 
-  Loader2, ArrowLeft, LogOut, ShieldCheck, Menu, X, BarChart, Store, ShoppingBag, PlusCircle
+  Loader2, ArrowLeft, LogOut, ShieldCheck, Menu, X, BarChart, Store, ShoppingBag, PlusCircle,
+  Bell // <-- Added Bell icon
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 
@@ -59,6 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/listings', label: 'All Listings', icon: ShoppingBag },
     { href: '/admin/moderation', label: 'Moderation', icon: AlertTriangle },
     { href: '/admin/content', label: 'Content', icon: FileText },
+    { href: '/admin/notifications', label: 'Send Notifications', icon: Bell }, // <-- Added here
     { href: '/admin/system', label: 'System Settings', icon: Settings },
   ];
 

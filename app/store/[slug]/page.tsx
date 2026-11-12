@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Loader2, Store as StoreIcon, ShieldCheck } from 'lucide-react';
 import { ListingGrid } from '@/features/marketplace/grid';
+import Image from 'next/image';
 
 export default function PublicStorePage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
@@ -12,38 +13,33 @@ export default function PublicStorePage({ params }: { params: Promise<{ slug: st
   const [loading, setLoading] = useState(true);
   const [storeOwner, setStoreOwner] = useState<any>(null);
   const [listings, setListings] = useState<any[]>([]);
-  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     async function fetchStore() {
       const supabase = createBrowserSupabase();
 
-      // 1. Fetch the seller
+      // Look up by store_slug OR seller_code
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, name, store_slug, seller_code, verification_level, seller_profiles(business_name)')
+        .select('id, name, store_slug, seller_code, verification_level, seller_profiles(business_name, logo_url)')
         .or(`store_slug.eq.${slug},seller_code.eq.${slug}`)
         .single();
 
       if (userError || !user) {
-        console.error("Store fetch error:", userError);
-        setErrorMsg(userError?.message || 'Store not found');
         setLoading(false);
         return;
       }
 
       setStoreOwner(user);
 
-      // 2. Fetch the listings
-      const { data: storeListings, error: listError } = await supabase
+      const { data: storeListings } = await supabase
         .from('listings')
         .select('*')
         .eq('seller_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (listError) console.error("Listings fetch error:", listError);
-      setListings(storeListings || []);
+      if (storeListings) setListings(storeListings);
       setLoading(false);
     }
 
@@ -51,29 +47,40 @@ export default function PublicStorePage({ params }: { params: Promise<{ slug: st
   }, [slug]);
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
-  if (errorMsg || !storeOwner) {
+  if (!storeOwner) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center bg-background px-4 text-center">
         <StoreIcon className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
         <h1 className="text-2xl font-bold text-foreground mb-2">Store Not Found</h1>
-        <p className="text-muted-foreground">{errorMsg || `The store "${slug}" does not exist.`}</p>
+        <p className="text-muted-foreground">The store "{slug}" does not exist.</p>
       </div>
     );
   }
 
   const storeName = storeOwner.seller_profiles?.business_name || storeOwner.name || 'Seller Store';
+  const storeLogo = storeOwner.seller_profiles?.logo_url;
   const isVerified = storeOwner.verification_level === 'verified';
 
   return (
     <div className="min-h-screen bg-background pb-32">
       <div className="bg-primary/5 border-b border-border py-16">
         <div className="mx-auto max-w-7xl px-4 flex flex-col items-center text-center">
-          <div className="h-24 w-24 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-4xl font-bold mb-4 shadow-xl">
-            {storeName.charAt(0).toUpperCase()}
+          
+          <div className="relative h-24 w-24 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-4xl font-bold mb-4 shadow-xl overflow-hidden">
+            {storeLogo ? (
+              <Image src={storeLogo} alt={storeName} fill className="object-cover" />
+            ) : (
+              storeName.charAt(0).toUpperCase()
+            )}
           </div>
+
           <h1 className="text-3xl font-extrabold text-foreground flex items-center gap-2">
             {storeName}
             {isVerified && <ShieldCheck className="h-6 w-6 text-primary" />}

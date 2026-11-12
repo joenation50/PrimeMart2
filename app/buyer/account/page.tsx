@@ -5,7 +5,7 @@ import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { useRouter } from 'next/navigation';
 import {
   Loader2, LogOut, Copy, Check, Mail, Phone, ShieldCheck,
-  AlertCircle, RefreshCw, ArrowRight, Store,
+  AlertCircle, RefreshCw, ArrowRight, Store, Package, BarChart3, ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -47,10 +47,13 @@ export default function BuyerAccountPage() {
         setLoading(false);
         return;
       }
+      
+      // If they are a seller, send them to the seller account page
       if (data.role === 'seller') {
         router.replace('/seller/account');
         return;
       }
+      
       setProfile(data as Profile);
       setLoading(false);
     }
@@ -155,7 +158,7 @@ export default function BuyerAccountPage() {
           </div>
         </div>
 
-        {/* Your code */}
+        {/* Your Buyer Code */}
         <div className="glass-card rounded-2xl p-6">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Your Buyer Code
@@ -186,7 +189,7 @@ export default function BuyerAccountPage() {
         {/* Upgrade CTA */}
         <Link
           href="/buyer/upgrade"
-          className="glass-card rounded-2xl p-6 flex items-center justify-between gap-4 hover:bg-secondary/50 transition-colors group"
+          className="glass-card rounded-2xl p-6 flex items-center justify-between gap-4 hover:bg-secondary/50 transition-colors group border border-primary/20 bg-primary/5"
         >
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
@@ -197,14 +200,36 @@ export default function BuyerAccountPage() {
               <p className="text-sm text-muted-foreground">Start selling on PrimeMart today</p>
             </div>
           </div>
-          <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+          <ArrowRight className="h-5 w-5 text-primary shrink-0 group-hover:translate-x-1 transition-transform" />
         </Link>
+
+        {/* Disabled Seller Features */}
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-3">Seller Features</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="glass-card rounded-2xl p-5 opacity-50 cursor-not-allowed select-none">
+              <Package className="h-6 w-6 text-muted-foreground mb-3" />
+              <p className="font-semibold text-foreground text-sm">My Listings</p>
+              <p className="text-xs text-muted-foreground mt-1">Upgrade to unlock</p>
+            </div>
+            <div className="glass-card rounded-2xl p-5 opacity-50 cursor-not-allowed select-none">
+              <BarChart3 className="h-6 w-6 text-muted-foreground mb-3" />
+              <p className="font-semibold text-foreground text-sm">Analytics</p>
+              <p className="text-xs text-muted-foreground mt-1">Upgrade to unlock</p>
+            </div>
+            <div className="glass-card rounded-2xl p-5 opacity-50 cursor-not-allowed select-none">
+              <ExternalLink className="h-6 w-6 text-muted-foreground mb-3" />
+              <p className="font-semibold text-foreground text-sm">Public Store</p>
+              <p className="text-xs text-muted-foreground mt-1">Upgrade to unlock</p>
+            </div>
+          </div>
+        </div>
 
         {/* Sign out */}
         <button
           onClick={handleSignOut}
           disabled={signingOut}
-          className="w-full flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 py-4 text-red-500 font-medium hover:bg-red-500/10 transition-colors disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 py-4 text-red-500 font-medium hover:bg-red-500/10 transition-colors disabled:opacity-50 mt-8"
         >
           {signingOut ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogOut className="h-5 w-5" />}
           {signingOut ? 'Signing out…' : 'Sign Out'}

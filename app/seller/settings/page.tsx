@@ -54,7 +54,8 @@ export default function SellerSettingsPage() {
     formData.append('upload_preset', 'primemart_preset'); 
 
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/e8631318e76538546a9852f30ec2f9/image/upload`, {
+      // UPDATED CLOUD NAME HERE
+      const res = await fetch(`https://api.cloudinary.com/v1_1/za4q8nqh/image/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -63,7 +64,7 @@ export default function SellerSettingsPage() {
       if (data.secure_url) {
         setProfile(prev => ({ ...prev, logo_url: data.secure_url }));
       } else {
-        setErrorMsg(data.error?.message || 'Upload failed');
+        setErrorMsg(data.error?.message || 'Upload failed. Check your Cloudinary settings.');
       }
     } catch (err) {
       setErrorMsg('Failed to upload image. Check your connection.');
@@ -81,13 +82,11 @@ export default function SellerSettingsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Generate slug from business name
     const baseSlug = profile.business_name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    // Check if slug exists
     const { data: existing } = await supabase
       .from('users')
       .select('id')
@@ -97,7 +96,6 @@ export default function SellerSettingsPage() {
 
     const finalSlug = existing ? `${baseSlug}-${Math.floor(Math.random() * 1000)}` : baseSlug;
 
-    // Update Seller Profile
     const { error: profileError } = await supabase.from('seller_profiles').update({ 
       business_name: profile.business_name,
       logo_url: profile.logo_url
@@ -109,7 +107,6 @@ export default function SellerSettingsPage() {
       return;
     }
 
-    // Update User (Phone & Slug)
     const { error: userError } = await supabase.from('users').update({ 
       phone: profile.whatsapp,
       store_slug: finalSlug
@@ -139,7 +136,6 @@ export default function SellerSettingsPage() {
 
       <form onSubmit={handleSave} className="glass-card rounded-3xl p-8 space-y-6">
         
-        {/* LOGO UPLOAD */}
         <div className="flex flex-col items-center gap-4 mb-6">
           <div className="relative h-28 w-28 rounded-full border-4 border-background shadow-xl flex items-center justify-center overflow-hidden bg-secondary">
             {profile.logo_url ? (

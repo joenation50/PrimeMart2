@@ -39,11 +39,9 @@ export default function SellerNewListingPage() {
     if (!e.target.files) return;
     const selectedFiles = Array.from(e.target.files);
     
-    // Max 6 images
     const newFiles = [...files, ...selectedFiles].slice(0, 6);
     setFiles(newFiles);
 
-    // Create preview URLs
     const newPreviews = newFiles.map(file => URL.createObjectURL(file));
     setPreviews(newPreviews);
   }
@@ -73,14 +71,14 @@ export default function SellerNewListingPage() {
     }
 
     try {
-      // 1. Upload images directly to Cloudinary
       const uploadedUrls: string[] = [];
       for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', 'primemart_preset');
 
-        const res = await fetch(`https://api.cloudinary.com/v1_1/e8631318e76538546a9852f30ec2f9/image/upload`, {
+        // UPDATED CLOUD NAME HERE
+        const res = await fetch(`https://api.cloudinary.com/v1_1/za4q8nqh/image/upload`, {
           method: 'POST',
           body: formData,
         });
@@ -95,7 +93,6 @@ export default function SellerNewListingPage() {
         throw new Error('Image upload failed. Please try again.');
       }
 
-      // 2. Save listing to Supabase
       const { error } = await supabase.from('listings').insert({
         seller_id: user.id,
         title: form.title,
@@ -103,13 +100,11 @@ export default function SellerNewListingPage() {
         category: form.category,
         description: form.description,
         price_negotiable: form.price_negotiable,
-        images: uploadedUrls, // Array of Cloudinary URLs
+        images: uploadedUrls,
         status: 'active'
       });
 
       if (error) throw error;
-
-      // 3. Redirect on success
       router.push('/seller/listings');
 
     } catch (err: any) {
@@ -138,7 +133,6 @@ export default function SellerNewListingPage() {
 
       <form onSubmit={handleSubmit} className="glass-card rounded-3xl p-8 space-y-6">
         
-        {/* IMAGE UPLOAD */}
         <div>
           <label className="block text-sm font-medium mb-3">Photos (Max 6)</label>
           <div className="grid grid-cols-3 gap-3 mb-3">
@@ -161,28 +155,20 @@ export default function SellerNewListingPage() {
           </div>
         </div>
 
-        {/* TITLE */}
         <div>
           <label className="mb-2 block text-sm font-medium">Title</label>
           <input 
-            type="text" 
-            required 
-            value={form.title} 
-            onChange={e => setForm({...form, title: e.target.value})} 
+            type="text" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} 
             className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary" 
             placeholder="e.g. iPhone 13 Pro Max 256GB" 
           />
         </div>
 
-        {/* PRICE & CATEGORY */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="mb-2 block text-sm font-medium">Price (₦)</label>
             <input 
-              type="number" 
-              required 
-              value={form.price} 
-              onChange={e => setForm({...form, price: e.target.value})} 
+              type="number" required value={form.price} onChange={e => setForm({...form, price: e.target.value})} 
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary" 
               placeholder="50000" 
             />
@@ -190,49 +176,36 @@ export default function SellerNewListingPage() {
           <div>
             <label className="mb-2 block text-sm font-medium">Category</label>
             <select 
-              required
-              value={form.category} 
-              onChange={e => setForm({...form, category: e.target.value})} 
+              required value={form.category} onChange={e => setForm({...form, category: e.target.value})} 
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
             >
               <option value="" disabled>Select category</option>
               {categories.map(c => (
-                <option key={c.id} value={c.name || c.slug || c.id}>
-                  {c.name}
-                </option>
+                <option key={c.id} value={c.name || c.slug || c.id}>{c.name}</option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* NEGOTIABLE */}
         <div className="flex items-center gap-2">
           <input 
-            type="checkbox" 
-            id="negotiable"
-            checked={form.price_negotiable} 
-            onChange={e => setForm({...form, price_negotiable: e.target.checked})} 
+            type="checkbox" id="negotiable" checked={form.price_negotiable} onChange={e => setForm({...form, price_negotiable: e.target.checked})} 
             className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
           />
           <label htmlFor="negotiable" className="text-sm font-medium cursor-pointer">Price is negotiable</label>
         </div>
 
-        {/* DESCRIPTION */}
         <div>
           <label className="mb-2 block text-sm font-medium">Description</label>
           <textarea 
-            required 
-            rows={4}
-            value={form.description} 
-            onChange={e => setForm({...form, description: e.target.value})} 
+            required rows={4} value={form.description} onChange={e => setForm({...form, description: e.target.value})} 
             className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary resize-none" 
             placeholder="Describe your item..." 
           />
         </div>
 
         <button 
-          type="submit" 
-          disabled={saving} 
+          type="submit" disabled={saving} 
           className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 flex justify-center items-center gap-2"
         >
           {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading & Saving...</> : 'Post Listing'}
