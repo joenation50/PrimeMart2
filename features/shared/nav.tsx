@@ -13,36 +13,50 @@ import {
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { cn } from '@/lib/utils';
 import { SITE_NAME } from '@/lib/constants';
-import type { User as UserType } from '@/types';
 
-interface NavProps {
-  session: { auth: { id: string }; profile: UserType } | null;
-  unreadCount: number;
-}
-
-export function Nav({ session, unreadCount }: NavProps) {
+export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  
+  // Client-side session state
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    const supabase = createBrowserSupabase();
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Listen for auth changes (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   async function signOut() {
     const supabase = createBrowserSupabase();
     await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
+    window.location.href = '/';
   }
 
-  const role = session?.profile?.role;
-  const isAdmin = role === 'admin';
-  const isSeller = role === 'seller' || isAdmin;
-  const isBuyer = role === 'buyer';
+  // Determine role based on metadata or default
+  // Since we don't have the full profile here, we check the email or metadata
+  const isAdmin = session?.user?.email === 'joenation98@gmail.com'; 
+  const isSeller = session?.user?.user_metadata?.intent === 'sell' || isAdmin;
+  const isBuyer = session && !isSeller && !isAdmin;
 
-  const homeHref = isSeller ? '/dashboard' : isBuyer ? '/buyer' : '/';
+  const homeHref = isSeller ? '/dashboard' : '/buyer';
 
   function handleBrowseClick(e: React.MouseEvent) {
     if (!session) {
@@ -50,6 +64,8 @@ export function Nav({ session, unreadCount }: NavProps) {
       setShowAuthPrompt(true);
     }
   }
+
+  if (loading) return null; // Prevent flash of wrong state
 
   return (
     <>
@@ -89,10 +105,9 @@ export function Nav({ session, unreadCount }: NavProps) {
               <>
                 <Link href="/notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border hover:bg-secondary">
                   <Bell className="h-4 w-4" />
-                  {unreadCount > 0 && <span className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{unreadCount}</span>}
                 </Link>
                 <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold hover:opacity-80">
-                  {session.profile.name.charAt(0)}
+                  {session.user.email?.charAt(0).toUpperCase()}
                 </Link>
                 <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-secondary hover:text-foreground">
                   <LogOut className="h-4 w-4" />
@@ -114,7 +129,7 @@ export function Nav({ session, unreadCount }: NavProps) {
             <Link href="/signup" className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground">Get Started</Link>
           ) : (
             <Link href="/account" className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
-              {session.profile.name.charAt(0)}
+              {session.user.email?.charAt(0).toUpperCase()}
             </Link>
           )}
         </div>
@@ -127,7 +142,7 @@ export function Nav({ session, unreadCount }: NavProps) {
           <span>Browse</span>
         </Link>
 
-        <Link href={homeHref} className={cn("dock-item", pathname === homeHref && "active")}>
+        <Link href={session ? homeHref : '/'} className={cn("dock-item", pathname === homeHref && "active")}>
           {isSeller ? <LayoutDashboard /> : <Home />}
           <span>{isSeller ? 'Dash' : 'Home'}</span>
         </Link>
@@ -136,7 +151,6 @@ export function Nav({ session, unreadCount }: NavProps) {
           <Link href="/notifications" className={cn("dock-item relative", pathname === '/notifications' && "active")}>
             <Bell />
             <span>Alerts</span>
-            {unreadCount > 0 && <span className="absolute top-1 right-2 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-background" />}
           </Link>
         ) : (
           <Link href="/login" className={cn("dock-item", pathname === '/login' && "active")}>
@@ -190,76 +204,31 @@ export function Nav({ session, unreadCount }: NavProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-border" />
-            
             <div className="space-y-1">
               {session ? (
                 <>
                   <div className="px-4 pb-2">
-                    <p className="text-sm font-semibold text-foreground">{session.profile.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{role}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">{session.user.email}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{isAdmin ? 'Admin' : isSeller ? 'Seller' : 'Buyer'}</p>
                   </div>
 
                   <Link href="/account" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                     <div className="flex items-center gap-3"><User className="h-5 w-5 text-muted-foreground" /><span className="font-medium">My Profile</span></div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Link>
-                  <Link href="/verified-sellers" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                    <div className="flex items-center gap-3"><Shield className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Verified Sellers</span></div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </Link>
                   
                   {isBuyer && (
-                    <>
-                      <Link href="/favorites" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><Heart className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Saved Items</span></div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Link>
-                      <Link href="/signup?intent=sell" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-primary hover:bg-primary/10">
-                        <div className="flex items-center gap-3"><Store className="h-5 w-5" /><span className="font-medium">Start Selling</span></div>
-                        <ChevronRight className="h-4 w-4" />
-                      </Link>
-                    </>
-                  )}
-
-                  {isSeller && !isAdmin && (
-                    <>
-                      <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><LayoutDashboard className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Dashboard</span></div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Link>
-                      <Link href="/dashboard/analytics" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><BarChart className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Analytics</span></div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Link>
-                      <Link href="/listings/new" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><PlusCircle className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Create Listing</span></div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Link>
-                      <Link href="/dashboard/settings" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><Settings className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Store Settings</span></div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Link>
-                    </>
+                    <Link href="/favorites" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
+                      <div className="flex items-center gap-3"><Heart className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Saved Items</span></div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </Link>
                   )}
 
                   {isAdmin && (
                     <>
                       <div className="my-2 h-px bg-border" />
-                      <p className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Admin Controls</p>
                       <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><LayoutDashboard className="h-5 w-5 text-primary" /><span className="font-medium text-primary">Approval Queue</span></div>
-                      </Link>
-                      <Link href="/admin/users" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><User className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Manage Users</span></div>
-                      </Link>
-                      <Link href="/admin/moderation" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><AlertTriangle className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Moderation</span></div>
-                      </Link>
-                      <Link href="/admin/content" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><FileText className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Content & Categories</span></div>
-                      </Link>
-                      <Link href="/admin/system" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
-                        <div className="flex items-center gap-3"><Settings className="h-5 w-5 text-muted-foreground" /><span className="font-medium">System & Banners</span></div>
+                        <div className="flex items-center gap-3"><LayoutDashboard className="h-5 w-5 text-primary" /><span className="font-medium text-primary">Admin Panel</span></div>
                       </Link>
                     </>
                   )}
@@ -281,16 +250,8 @@ export function Nav({ session, unreadCount }: NavProps) {
                 </>
               ) : (
                 <>
-                  <div className="mb-6 text-center pt-4">
-                    <h2 className="text-2xl font-bold text-foreground">Join PrimeMart</h2>
-                    <p className="text-sm text-muted-foreground">Sign in to access your dashboard.</p>
-                  </div>
-                  <Link href="/login" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-center rounded-xl border border-border py-3 font-medium hover:bg-secondary">
-                    Sign In
-                  </Link>
-                  <Link href="/signup" onClick={() => setMenuOpen(false)} className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3 font-medium text-primary-foreground">
-                    Create Account
-                  </Link>
+                  <Link href="/login" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-center rounded-xl border border-border py-3 font-medium hover:bg-secondary">Sign In</Link>
+                  <Link href="/signup" onClick={() => setMenuOpen(false)} className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3 font-medium text-primary-foreground">Create Account</Link>
                 </>
               )}
             </div>
