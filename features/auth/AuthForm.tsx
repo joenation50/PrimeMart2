@@ -1,60 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { createBrowserSupabase } from '@/lib/supabase-browser';
+import { loginAction, signupAction } from '@/actions/auth';
 import { Loader2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
+  async function handleSubmit(formData: FormData) {
     setError(null);
-
-    const supabase = createBrowserSupabase();
     
-    if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
-      }
-      
-      // Let the server figure out where to send them
-      window.location.href = '/auth/redirect';
+    startTransition(async () => {
+      const result = mode === 'login' 
+        ? await loginAction(formData) 
+        : await signupAction(formData);
 
-    } else {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
+      if (result?.error) {
+        setError(result.error);
       }
-
-      if (data.user) {
-        await supabase.from('users').insert({
-          id: data.user.id,
-          name: email.split('@')[0],
-          email: email,
-          role: 'buyer',
-          seller_code: `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-          country: 'NG',
-          country_locked: false,
-          timezone: 'Africa/Lagos',
-          auth_method: 'email',
-          account_status: 'active',
-          verification_level: 'none'
-        });
-      }
-
-      window.location.href = '/auth/redirect';
-    }
+    });
   }
 
   return (
@@ -74,14 +40,13 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form action={handleSubmit} className="space-y-5">
         <div>
           <label className="mb-2 block text-sm font-medium text-foreground">Email</label>
           <input
             type="email"
+            name="email"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
             placeholder="you@example.com"
           />
@@ -91,9 +56,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           <label className="mb-2 block text-sm font-medium text-foreground">Password</label>
           <input
             type="password"
+            name="password"
             required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
             placeholder="••••••••"
           />
@@ -101,10 +65,10 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={isPending}
           className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
+          {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
       </form>
 

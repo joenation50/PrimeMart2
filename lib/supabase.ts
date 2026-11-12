@@ -11,16 +11,9 @@ export async function createServerSupabase() {
     {
       cookies: {
         getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet: any[]) { // <-- TYPESCRIPT FIX HERE
+        setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, {
-                ...options,
-                secure: true,
-                sameSite: 'none',
-                maxAge: 60 * 60 * 24 * 365,
-              });
-            });
+            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
           } catch {}
         },
       },
@@ -45,15 +38,10 @@ export async function updateSession(request: NextRequest, response: NextResponse
     {
       cookies: {
         getAll() { return request.cookies.getAll(); },
-        setAll(cookiesToSet: any[]) { // <-- TYPESCRIPT FIX HERE
+        setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, {
-              ...options,
-              secure: true,
-              sameSite: 'none',
-              maxAge: 60 * 60 * 24 * 365,
-            });
+            response.cookies.set(name, value, options);
           });
         },
       },

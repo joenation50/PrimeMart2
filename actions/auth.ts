@@ -8,15 +8,12 @@ export async function loginAction(formData: FormData) {
   const password = formData.get('password') as string;
 
   const supabase = await createServerSupabase();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) return { error: error.message };
   
-  const { data: profile } = await supabase.from('users').select('role').eq('id', data.user.id).single();
-  
-  if (profile?.role === 'admin') redirect('/admin');
-  if (profile?.role === 'seller') redirect('/dashboard');
-  redirect('/buyer');
+  // Push to the central role router
+  redirect('/auth/redirect');
 }
 
 export async function signupAction(formData: FormData) {
@@ -62,5 +59,6 @@ export async function signupAction(formData: FormData) {
     }
   }
 
-  redirect('/buyer');
+  // Push to the central role router
+  redirect('/auth/redirect');
 }
