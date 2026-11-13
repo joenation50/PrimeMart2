@@ -18,7 +18,8 @@ export function GlobalLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <Nav />
-      <main className="flex-1 pb-28 md:pb-0">
+      {/* Added pb-32 to ensure the bottom nav never covers the last element on the page */}
+      <main className="flex-1 pb-32 md:pb-0">
         {children}
       </main>
       <Footer />

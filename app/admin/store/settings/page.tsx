@@ -6,6 +6,12 @@ import { Store, Loader2, CheckCircle2, UploadCloud, AlertCircle } from 'lucide-r
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
+// Fallback categories so the UI never breaks
+const FALLBACK_CATEGORIES = [
+  'Fashion', 'Electronics', 'Gadgets', 'Home', 'Services', 
+  'Vehicles', 'Transport', 'Food', 'Beauty', 'Health', 'Tutorials', 'Others'
+];
+
 export default function AdminStoreSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -13,7 +19,7 @@ export default function AdminStoreSettings() {
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
-  const [dbCategories, setDbCategories] = useState<string[]>([]);
+  const [dbCategories, setDbCategories] = useState<string[]>(FALLBACK_CATEGORIES);
 
   const [profile, setProfile] = useState({
     real_name: 'PrimeMart Official',
@@ -31,9 +37,11 @@ export default function AdminStoreSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch available categories
+      // Fetch categories
       const { data: cats } = await supabase.from('categories').select('name').eq('active', true);
-      if (cats) setDbCategories(cats.map(c => c.name));
+      if (cats && cats.length > 0) {
+        setDbCategories(cats.map(c => c.name));
+      }
 
       // Fetch admin profile
       const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();

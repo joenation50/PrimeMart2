@@ -8,6 +8,12 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
+// Fallback categories so the UI never breaks
+const FALLBACK_CATEGORIES = [
+  'Fashion', 'Electronics', 'Gadgets', 'Home', 'Services', 
+  'Vehicles', 'Transport', 'Food', 'Beauty', 'Health', 'Tutorials', 'Others'
+];
+
 export default function SellerSettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -16,7 +22,7 @@ export default function SellerSettingsPage() {
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
-  const [dbCategories, setDbCategories] = useState<string[]>([]);
+  const [dbCategories, setDbCategories] = useState<string[]>(FALLBACK_CATEGORIES);
 
   const [profile, setProfile] = useState({ 
     business_name: '', 
@@ -36,7 +42,9 @@ export default function SellerSettingsPage() {
 
       // Fetch categories
       const { data: cats } = await supabase.from('categories').select('name').eq('active', true);
-      if (cats) setDbCategories(cats.map(c => c.name));
+      if (cats && cats.length > 0) {
+        setDbCategories(cats.map(c => c.name));
+      }
 
       // Fetch profile
       const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();

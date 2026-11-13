@@ -143,10 +143,11 @@ export default function MarketplacePage() {
           .in('role', ['seller', 'admin'])
           .ilike('name', term);
 
-        // Combine unique user IDs
+        // Combine unique user IDs (Fixed TypeScript Error here)
         const profileIds = profiles?.map(p => p.user_id) || [];
         const userIds = users?.map(u => u.id) || [];
-        const allIds = [...new Set([...profileIds, ...userIds])];
+        const combinedIds = profileIds.concat(userIds);
+        const allIds = Array.from(new Set(combinedIds));
 
         // Fetch full details for these matching sellers
         if (allIds.length > 0) {

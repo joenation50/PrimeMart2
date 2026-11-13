@@ -82,8 +82,8 @@ export function Nav() {
 
   return (
     <>
-      {/* DESKTOP NAV */}
-      <header className="sticky top-0 z-50 w-full glass-nav hidden md:block">
+      {/* DESKTOP NAV - Solid background with backdrop blur to prevent text bleed */}
+      <header className="sticky top-0 z-50 w-full hidden md:block border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center">
@@ -142,7 +142,7 @@ export function Nav() {
       </header>
 
       {/* MOBILE HEADER */}
-      <header className="sticky top-0 z-40 w-full glass-nav md:hidden flex h-16 items-center justify-between px-4">
+      <header className="sticky top-0 z-40 w-full md:hidden flex h-16 items-center justify-between px-4 border-b border-border bg-background/80 backdrop-blur-xl">
         <Link href="/" className="flex items-center">
           <Image src="/logo-black.png" alt={SITE_NAME} width={100} height={25} className="h-6 w-auto block dark:hidden" />
           <Image src="/logo-white.png" alt={SITE_NAME} width={100} height={25} className="h-6 w-auto hidden dark:block" />
@@ -158,9 +158,9 @@ export function Nav() {
         </div>
       </header>
 
-      {/* MOBILE DOCK */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe md:hidden">
-        <nav className="relative mx-auto flex max-w-md items-center justify-between overflow-hidden rounded-full border border-border/50 bg-background px-2 py-3 shadow-2xl backdrop-blur-xl">
+      {/* MOBILE DOCK - Added transform-gpu and pb-safe to prevent scroll glitches */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe transform-gpu md:hidden pointer-events-none">
+        <nav className="pointer-events-auto relative mx-auto flex max-w-md items-center justify-between overflow-hidden rounded-full border border-border/50 bg-background px-2 py-3 shadow-2xl backdrop-blur-xl">
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 via-transparent to-primary/10" />
 
           <Link href="/marketplace" onClick={handleBrowseClick} className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname === '/marketplace' ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
@@ -265,7 +265,6 @@ export function Nav() {
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </Link>
                       
-                      {/* NEW: MY REVIEWS LINK ADDED HERE */}
                       <Link href="/seller/reviews" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                         <div className="flex items-center gap-3"><Star className="h-5 w-5 text-muted-foreground" /><span className="font-medium">My Reviews</span></div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
