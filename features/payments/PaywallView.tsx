@@ -2,184 +2,191 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { CheckCircle2, Loader2, UploadCloud, X } from 'lucide-react';
-import { submitPaymentProof } from '@/actions/payments';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import type { User, Payment } from '@/types';
+import { Loader2, UploadCloud, CheckCircle2, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
-export function PaywallView({ user, existingPayment }: { user: User; existingPayment: Payment | null }) {
+export function PaywallView({ user, existingPayment }: { user: any, existingPayment: any }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [claimedRef, setClaimedRef] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [reference, setReference] = useState('');
+  
+  const [uploading, setUploading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [success, setSuccess] = useState(false);
 
-  const isNigeria = user.country === 'NG';
-  const amount = isNigeria ? 5000 : 10;
-  const currency = isNigeria ? 'NGN' : 'USD';
-  const formattedAmount = isNigeria ? `₦${amount.toLocaleString()}` : `$${amount}`;
-
-  if (existingPayment) {
+  // If they already submitted a payment, show them a pending state
+  if (existingPayment || success) {
     return (
-      <div className="container mx-auto max-w-lg px-4 py-16 text-center">
-        <div className="rounded-2xl border border-border p-8">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-          <h1 className="text-2xl font-bold">Payment under review</h1>
-          <p className="mt-2 text-muted-foreground">
-            We received your proof of payment. Our team is verifying it. You'll get a notification once approved.
+      <div className="container mx-auto max-w-lg px-4 text-center">
+        <div className="glass-card rounded-3xl p-12">
+          <CheckCircle2 className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-foreground mb-2">Payment Under Review</h1>
+          <p className="text-muted-foreground mb-8">
+            Your payment is currently being reviewed by our team. This usually takes less than 24 hours.
           </p>
-          <Link href="/dashboard" className="mt-6 inline-block rounded-lg border border-border px-6 py-2 text-sm font-medium hover:bg-muted">
+          <button onClick={() => router.push('/seller')} className="rounded-full bg-secondary px-8 py-3 font-semibold text-foreground hover:bg-secondary/80">
             Go to Dashboard
-          </Link>
+          </button>
         </div>
       </div>
     );
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLoading(true);
-    setError(null);
-
-    try {
-      const sigRes = await fetch('/api/cloudinary/sign', { method: 'POST' });
-      const sigData = await sigRes.json();
-      if (!sigRes.ok) throw new Error('Upload failed');
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('api_key', sigData.apiKey);
-      formData.append('timestamp', sigData.timestamp.toString());
-      formData.append('signature', sigData.signature);
-      formData.append('folder', sigData.folder);
-
-      const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const cloudData = await cloudRes.json();
-      if (!cloudRes.ok) throw new Error(cloudData.error?.message || 'Cloudinary error');
-      setScreenshot(cloudData.public_id);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0];
+    if (selected) {
+      setFile(selected);
+      setPreview(URL.createObjectURL(selected));
+      setErrorMsg('');
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!screenshot) return;
-    setLoading(true);
-    setError(null);
+    if (!file) {
+      setErrorMsg('Please upload a screenshot of your payment.');
+      return;
+    }
 
-    const result = await submitPaymentProof({
-      reference: `${user.seller_code}-Y1`,
-      amount,
-      currency,
-      screenshot_url: screenshot,
-      claimed_ref: claimedRef,
-    });
+    setUploading(true);
+    setErrorMsg('');
+    
+    const supabase = createBrowserSupabase();
 
-    if (result.error) {
-      setError(result.error);
-      setLoading(false);
-    } else {
-      router.refresh();
+    try {
+      // 1. Upload directly to Cloudinary (Fixes the JSON error)
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'primemart_preset');
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/za4q8nqh/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await res.json();
+      
+      if (!data.secure_url) {
+        throw new Error('Failed to upload to Cloudinary. Check your connection.');
+      }
+
+      // 2. Save payment record to Supabase
+      const { error: paymentError } = await supabase.from('payments').insert({
+        seller_id: user.id,
+        amount: 5000,
+        status: 'pending_review',
+        reference: reference || 'No reference',
+        proof_url: data.secure_url,
+      });
+
+      if (paymentError) {
+        // If 'payments' table doesn't exist, this will catch it
+        throw new Error(`Database Error: ${paymentError.message}`);
+      }
+
+      // 3. Update user status to pending
+      const { error: userError } = await supabase.from('users')
+        .update({ seller_status: 'pending' })
+        .eq('id', user.id);
+
+      if (userError) {
+        throw new Error(`User Update Error: ${userError.message}`);
+      }
+
+      setSuccess(true);
+      
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setUploading(false);
     }
   }
 
   return (
-    <div className="container mx-auto max-w-lg px-4 py-12 relative">
-      <Link 
-        href="/dashboard" 
-        className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-        aria-label="Skip for now"
-      >
-        <X className="h-6 w-6" />
-      </Link>
+    <div className="container mx-auto max-w-lg px-4">
+      <div className="glass-card rounded-3xl p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-foreground">Activate Your Store</h1>
+          <span className="text-xs font-mono bg-secondary px-3 py-1 rounded-full text-muted-foreground">
+            {user?.seller_code || 'PAYMENT'}
+          </span>
+        </div>
+        
+        <p className="text-sm text-muted-foreground mb-6">
+          Complete your payment to unlock selling features on PrimeMart.
+        </p>
 
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold">Sell on PrimeMart</h1>
-        <p className="mt-2 text-muted-foreground">Activate your account to start listing.</p>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-background p-6 shadow-sm sm:p-8">
-        <div className="mb-6 flex items-center justify-between border-b border-border pb-6">
-          <div>
-            <p className="font-medium">Seller Subscription</p>
-            <p className="text-sm text-muted-foreground">1 year · Unlimited listings</p>
-          </div>
-          <p className="text-2xl font-bold">{formattedAmount}</p>
+        {/* Bank Details Box */}
+        <div className="bg-secondary/50 rounded-2xl p-4 mb-6 space-y-2 text-sm">
+          <p className="flex justify-between"><span className="text-muted-foreground">Bank:</span> <span className="font-semibold">Opay</span></p>
+          <p className="flex justify-between"><span className="text-muted-foreground">Account Name:</span> <span className="font-semibold">PrimeMart</span></p>
+          <p className="flex justify-between"><span className="text-muted-foreground">Account Number:</span> <span className="font-semibold font-mono text-lg text-primary">8012345678</span></p>
+          <p className="flex justify-between"><span className="text-muted-foreground">Amount:</span> <span className="font-semibold">₦5,000</span></p>
         </div>
 
-        <div className="space-y-6">
+        {errorMsg && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-500/10 p-4 text-red-500">
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <p className="text-sm">{errorMsg}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Upload Area */}
           <div>
-            <h3 className="font-semibold mb-2">1. Make a transfer</h3>
-            <div className="rounded-lg bg-muted p-4 text-sm">
-              <p className="flex justify-between py-1">
-                <span className="text-muted-foreground">Bank</span>
-                <span className="font-medium">Moniepoint</span>
-              </p>
-              <p className="flex justify-between py-1">
-                <span className="text-muted-foreground">Account Number</span>
-                <span className="font-medium">08075771583</span>
-              </p>
-              <p className="flex justify-between py-1">
-                <span className="text-muted-foreground">Account Name</span>
-                <span className="font-medium">Joseph Nwankwo-uzo</span>
-              </p>
-              <p className="flex justify-between py-1 border-t border-border/50 mt-2 pt-2">
-                <span className="font-medium text-foreground">Transfer Reference</span>
-                <span className="font-mono font-bold">{user.seller_code}-Y1</span>
-              </p>
+            <label className="block text-sm font-medium mb-2">2. Upload proof of payment</label>
+            <p className="text-xs text-muted-foreground mb-3">All payments are final. No refunds.</p>
+            
+            <div className="relative border-2 border-dashed border-border rounded-2xl overflow-hidden hover:bg-secondary/20 transition-colors">
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                disabled={uploading}
+              />
+              {preview ? (
+                <div className="relative aspect-video w-full">
+                  <Image src={preview} alt="Payment proof" fill className="object-contain" />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                  <UploadCloud className="h-8 w-8 mb-2" />
+                  <p className="text-sm font-medium">Click to upload screenshot</p>
+                </div>
+              )}
             </div>
           </div>
 
+          {/* Reference Input */}
           <div>
-            <h3 className="font-semibold mb-2">2. Upload proof of payment</h3>
-            <p className="text-sm text-muted-foreground mb-3">All payments are final. No refunds.</p>
-
-            {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border p-6 transition hover:bg-muted/50">
-                <input type="file" accept="image/*" onChange={handleUpload} className="absolute inset-0 cursor-pointer opacity-0" disabled={loading || !!screenshot} />
-                {screenshot ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <span className="text-sm font-medium">Screenshot uploaded</span>
-                  </div>
-                ) : (
-                  <>
-                    <UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" />
-                    <span className="text-sm font-medium">Click to upload screenshot</span>
-                  </>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium">Transfer Reference (optional)</label>
-                <input type="text" value={claimedRef} onChange={(e) => setClaimedRef(e.target.value)} className="w-full rounded-lg border border-border px-3 py-2 text-sm" placeholder="e.g. GTB-123456" />
-              </div>
-
-              <button type="submit" disabled={!screenshot || loading} className="flex w-full items-center justify-center rounded-lg bg-foreground py-3 text-sm font-medium text-background disabled:opacity-50">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit for approval'}
-              </button>
-            </form>
+            <label className="block text-sm font-medium mb-2">Transfer Reference (optional)</label>
+            <input 
+              type="text" 
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="e.g. GTB-123456"
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
+              disabled={uploading}
+            />
           </div>
-        </div>
-      </div>
 
-      <div className="mt-8 text-center">
-        <Link href="/dashboard" className="text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground">
-          Skip for now. I'll pay later.
-        </Link>
+          <button 
+            type="submit" 
+            disabled={uploading || !file}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-bold text-primary-foreground disabled:opacity-50"
+          >
+            {uploading ? <><Loader2 className="h-5 w-5 animate-spin" /> Uploading...</> : 'Submit for approval'}
+          </button>
+        </form>
+        
+        <div className="mt-6 text-center">
+          <button onClick={() => router.push('/seller')} className="text-sm text-muted-foreground hover:text-foreground">
+            Skip for now. I'll pay later.
+          </button>
+        </div>
       </div>
     </div>
   );
