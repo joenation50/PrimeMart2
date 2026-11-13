@@ -40,13 +40,11 @@ export default function SellerSettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch categories
       const { data: cats } = await supabase.from('categories').select('name').eq('active', true);
       if (cats && cats.length > 0) {
         setDbCategories(cats.map(c => c.name));
       }
 
-      // Fetch profile
       const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();
       const { data: userData } = await supabase.from('users').select('phone, store_slug').eq('id', user.id).single();
 
@@ -95,37 +93,56 @@ export default function SellerSettingsPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return; // Prevent double clicks
+    
     setSaving(true);
     setSuccess(false);
     setErrorMsg('');
     
-    const supabase = createBrowserSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const supabase = createBrowserSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setErrorMsg("You must be logged in to save.");
+        return;
+      }
 
-    const baseSlug = profile.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    const { data: existing } = await supabase.from('users').select('id').eq('store_slug', baseSlug).neq('id', user.id).maybeSingle();
-    const finalSlug = existing ? `${baseSlug}-${Math.floor(Math.random() * 1000)}` : baseSlug;
+      const baseSlug = profile.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const { data: existing } = await supabase.from('users').select('id').eq('store_slug', baseSlug).neq('id', user.id).maybeSingle();
+      const finalSlug = existing ? `${baseSlug}-${Math.floor(Math.random() * 1000)}` : baseSlug;
 
-    const { error: profileError } = await supabase.from('seller_profiles').upsert({ 
-      user_id: user.id,
-      business_name: profile.business_name,
-      logo_url: profile.logo_url,
-      bio: profile.bio,
-      based_city: profile.based_city,
-      based_country: 'NG',
-      categories: profile.categories
-    }, { onConflict: 'user_id' });
+      // 1. Update Seller Profile
+      const { error: profileError } = await supabase.from('seller_profiles').upsert({ 
+        user_id: user.id,
+        business_name: profile.business_name,
+        logo_url: profile.logo_url,
+        bio: profile.bio,
+        based_city: profile.based_city,
+        based_country: 'NG',
+        categories: profile.categories
+      }, { onConflict: 'user_id' });
 
-    if (profileError) return setErrorMsg(profileError.message), setSaving(false);
+      if (profileError) throw new Error(profileError.message);
 
-    const { error: userError } = await supabase.from('users').update({ phone: profile.whatsapp, store_slug: finalSlug }).eq('id', user.id);
-    if (userError) return setErrorMsg(userError.message), setSaving(false);
+      // 2. Update User (Phone & Slug)
+      const { error: userError } = await supabase.from('users').update({ 
+        phone: profile.whatsapp, 
+        store_slug: finalSlug 
+      }).eq('id', user.id);
+      
+      if (userError) throw new Error(userError.message);
 
-    setProfile(prev => ({ ...prev, store_slug: finalSlug }));
-    setSaving(false);
-    setSuccess(true);
-    router.refresh(); 
+      setProfile(prev => ({ ...prev, store_slug: finalSlug }));
+      setSuccess(true);
+      router.refresh(); 
+      
+    } catch (err: any) {
+      // THIS WILL CATCH THE ERROR AND STOP THE LOADING SPINNER
+      setErrorMsg(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

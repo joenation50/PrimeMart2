@@ -68,10 +68,14 @@ export default function ModerationPage() {
               </div>
 
               <div className="flex flex-col gap-2 shrink-0 md:w-48">
-                {/* Only show View Target if it's a listing or store report */}
-                {(report.target_type === 'listing' || report.target_type === 'store' || report.target_type === 'seller' || report.target_type === 'buyer') && (
+                {/* Only show View Target if it's a listing or seller report */}
+                {(report.target_type === 'listing' || report.target_type === 'seller' || report.target_type === 'buyer') && (
                   <Link 
-                    href={report.target_type === 'listing' ? `/listing/${report.target_id}` : `/store/${report.target_id}`}
+                    href={
+                      report.target_type === 'listing' 
+                        ? `/listing/${report.target_id}` 
+                        : `/store/${report.target_id}`
+                    }
                     target="_blank"
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-secondary"
                   >

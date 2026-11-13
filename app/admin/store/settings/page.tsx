@@ -6,7 +6,6 @@ import { Store, Loader2, CheckCircle2, UploadCloud, AlertCircle } from 'lucide-r
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
-// Fallback categories so the UI never breaks
 const FALLBACK_CATEGORIES = [
   'Fashion', 'Electronics', 'Gadgets', 'Home', 'Services', 
   'Vehicles', 'Transport', 'Food', 'Beauty', 'Health', 'Tutorials', 'Others'
@@ -37,13 +36,11 @@ export default function AdminStoreSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch categories
       const { data: cats } = await supabase.from('categories').select('name').eq('active', true);
       if (cats && cats.length > 0) {
         setDbCategories(cats.map(c => c.name));
       }
 
-      // Fetch admin profile
       const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();
       const { data: userData } = await supabase.from('users').select('name').eq('id', user.id).maybeSingle();
       
@@ -67,7 +64,7 @@ export default function AdminStoreSettings() {
     setProfile(prev => {
       const isSelected = prev.categories.includes(catName);
       if (isSelected) return { ...prev, categories: prev.categories.filter(c => c !== catName) };
-      if (prev.categories.length >= 5) return prev; // max 5
+      if (prev.categories.length >= 5) return prev; 
       return { ...prev, categories: [...prev.categories, catName] };
     });
   }
@@ -104,33 +101,40 @@ export default function AdminStoreSettings() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
+    
     setSaving(true);
     setSuccess(false);
     setErrorMsg('');
     
-    const supabase = createBrowserSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const supabase = createBrowserSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setErrorMsg("You must be logged in.");
+        return;
+      }
 
-    const { error } = await supabase.from('seller_profiles').upsert({
-      user_id: user.id,
-      real_name: profile.real_name,
-      business_name: profile.business_name,
-      bio: profile.bio,
-      based_city: profile.based_city,
-      based_country: profile.based_country,
-      logo_url: profile.logo_url,
-      categories: profile.categories
-    }, { onConflict: 'user_id' });
+      const { error } = await supabase.from('seller_profiles').upsert({
+        user_id: user.id,
+        real_name: profile.real_name,
+        business_name: profile.business_name,
+        bio: profile.bio,
+        based_city: profile.based_city,
+        based_country: profile.based_country,
+        logo_url: profile.logo_url,
+        categories: profile.categories
+      }, { onConflict: 'user_id' });
 
-    if (error) {
-      setErrorMsg("Database Error: " + error.message);
+      if (error) throw new Error(error.message);
+
+      setSuccess(true);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to save settings.");
+    } finally {
       setSaving(false);
-      return;
     }
-
-    setSaving(false);
-    setSuccess(true);
   }
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

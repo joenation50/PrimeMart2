@@ -32,18 +32,29 @@ export default function PublicStorePage() {
       setCurrentUser(user);
 
       try {
-        const { data: owner, error: ownerError } = await supabase
+        // 1. Fetch Store Owner
+        // Check if the slug is a valid UUID to prevent Postgres casting errors
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+        
+        let query = supabase
           .from('users')
           .select(`
             id, name, phone, store_slug, seller_code, verification_level,
             seller_profiles(business_name, logo_url, based_city, bio, categories)
-          `)
-          .or(`store_slug.eq.${slug},seller_code.eq.${slug}`)
-          .maybeSingle();
+          `);
+
+        if (isUUID) {
+          query = query.or(`id.eq.${slug},store_slug.eq.${slug},seller_code.eq.${slug}`);
+        } else {
+          query = query.or(`store_slug.eq.${slug},seller_code.eq.${slug}`);
+        }
+
+        const { data: owner, error: ownerError } = await query.maybeSingle();
 
         if (ownerError || !owner) throw new Error('Store not found');
         setStoreOwner(owner);
 
+        // 2. Fetch Store Listings
         const { data: storeListings } = await supabase
           .from('listings')
           .select('*')
@@ -53,6 +64,7 @@ export default function PublicStorePage() {
         
         setListings(storeListings || []);
 
+        // 3. Fetch Store Reviews
         const { data: storeReviews } = await supabase
           .from('reviews')
           .select(`*, buyer:buyer_id(name)`)
@@ -146,11 +158,9 @@ export default function PublicStorePage() {
     if (Array.isArray(rawCategories)) {
       categories = rawCategories;
     } else if (typeof rawCategories === 'string') {
-      // If it's a JSON string like '["Fashion", "Gadgets"]'
       if (rawCategories.startsWith('[')) {
         categories = JSON.parse(rawCategories);
       } else {
-        // If it's a comma-separated string like "Fashion, Gadgets"
         categories = rawCategories.split(',').map((c: string) => c.trim());
       }
     }
