@@ -2,85 +2,146 @@
 
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { Loader2, Eye, MessageCircle, PlusCircle, TrendingUp } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Loader2, Plus, Edit, Trash2, Eye, AlertCircle, Package } from 'lucide-react';
 import Link from 'next/link';
-import { ListingRow } from '@/features/seller/ListingRow';
+import Image from 'next/image';
+import { formatPrice } from '@/lib/format';
 
-export default function AdminStoreDashboard() {
+export default function AdminStoreListingsPage() {
+  const router = useRouter();
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    async function fetchStore() {
+    async function fetchListings() {
       const supabase = createBrowserSupabase();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      
+      if (!user) {
+        router.replace('/login');
+        return;
+      }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('listings')
         .select('*')
         .eq('seller_id', user.id)
-        .neq('status', 'deleted')
         .order('created_at', { ascending: false });
 
-      setListings(data || []);
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        setListings(data || []);
+      }
       setLoading(false);
     }
-    fetchStore();
-  }, []);
+    fetchListings();
+  }, [router]);
 
-  const totalViews = listings.reduce((sum, l) => sum + (l.view_count || 0), 0);
-  const totalClicks = listings.reduce((sum, l) => sum + (l.click_count || 0), 0);
+  async function handleDelete(id: string) {
+    if (!confirm('Are you sure you want to delete this admin listing?')) return;
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    const supabase = createBrowserSupabase();
+    const { error } = await supabase.from('listings').delete().eq('id', id);
+
+    if (error) {
+      alert('Failed to delete listing: ' + error.message);
+    } else {
+      setListings(prev => prev.filter(l => l.id !== id));
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+    <div className="pb-32">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">My Store Dashboard</h1>
-          <p className="text-muted-foreground">Manage your personal PrimeMart Official listings.</p>
+          <h1 className="text-2xl font-bold text-foreground">My Store Listings</h1>
+          <p className="text-sm text-muted-foreground">Manage products for PrimeMart Official.</p>
         </div>
-        <Link href="/admin/store/listings/new" className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:scale-105 transition-all">
-          <PlusCircle className="h-4 w-4" /> Add New Product
+        <Link
+          href="/admin/store/listings/new"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+        >
+          <Plus className="h-4 w-4" /> New Product
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="glass-card rounded-2xl p-6">
-          <p className="text-sm font-medium text-muted-foreground">Active Listings</p>
-          <p className="mt-2 text-4xl font-bold text-foreground">{listings.filter(l => l.status === 'active').length}</p>
+      {errorMsg && (
+        <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-500/10 p-4 text-red-500">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <p className="text-sm">Database Error: {errorMsg}</p>
         </div>
-        <div className="glass-card rounded-2xl p-6">
-          <p className="text-sm font-medium text-muted-foreground">Total Views</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <p className="text-4xl font-bold text-foreground">{totalViews}</p>
-            <Eye className="h-5 w-5 text-muted-foreground" />
-          </div>
-        </div>
-        <div className="glass-card rounded-2xl p-6">
-          <p className="text-sm font-medium text-muted-foreground">WhatsApp Clicks</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <p className="text-4xl font-bold text-primary">{totalClicks}</p>
-            <MessageCircle className="h-5 w-5 text-primary" />
-          </div>
-        </div>
-      </div>
+      )}
 
-      <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="border-b border-border px-6 py-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="h-5 w-5 text-primary" /> My Products</h2>
+      {listings.length === 0 ? (
+        <div className="glass-card rounded-3xl p-12 text-center">
+          <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <p className="text-muted-foreground mb-4">You haven't created any admin listings yet.</p>
+          <Link
+            href="/admin/store/listings/new"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
+          >
+            <Plus className="h-4 w-4" /> Create your first listing
+          </Link>
         </div>
-        {listings.length === 0 ? (
-          <div className="py-16 text-center text-muted-foreground">You haven't added any products yet.</div>
-        ) : (
-          <div className="divide-y divide-border">
-            {listings.map((listing) => (
-              <ListingRow key={listing.id} listing={listing} />
-            ))}
-          </div>
-        )}
-      </div>
+      ) : (
+        <div className="space-y-4">
+          {listings.map((listing) => (
+            <div key={listing.id} className="glass-card rounded-2xl p-4 flex items-center gap-4">
+              <div className="relative h-20 w-20 shrink-0 rounded-xl overflow-hidden bg-secondary">
+                {listing.images?.[0] ? (
+                  <Image src={listing.images[0]} alt={listing.title} fill className="object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground text-xs">No Image</div>
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-foreground truncate">{listing.title}</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {listing.price_negotiable ? 'Negotiable' : formatPrice(listing.price, listing.currency)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 capitalize">Status: {listing.status}</p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/listing/${listing.id}`}
+                  target="_blank"
+                  className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  title="View public page"
+                >
+                  <Eye className="h-4 w-4" />
+                </Link>
+                <Link
+                  href={`/admin/store/listings/${listing.id}/edit`}
+                  className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  title="Edit listing"
+                >
+                  <Edit className="h-4 w-4" />
+                </Link>
+                <button
+                  onClick={() => handleDelete(listing.id)}
+                  className="p-2 rounded-full hover:bg-red-500/10 text-red-500 transition-colors"
+                  title="Delete listing"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

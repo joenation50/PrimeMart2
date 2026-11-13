@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { 
-  Loader2, Store, Search, User, Phone, 
+  Loader2, Store, Search, User, Mail, Phone, MapPin, 
   ShieldCheck, Calendar, Clock, Star, AlertTriangle, 
   CreditCard, CheckCircle2, X, Globe, ShieldAlert,
   ExternalLink, Shield, UserMinus
@@ -25,12 +25,17 @@ export default function AdminUsersPage() {
   }, []);
 
   async function fetchUsers() {
+    setLoading(true);
     const supabase = createBrowserSupabase();
     
-    // Fetch users AND their seller profile data (for the logo)
+    // Fetch users, their seller profile, AND their listings (for the universal search)
     const { data, error } = await supabase
       .from('users')
-      .select('*, seller_profiles(business_name, logo_url)')
+      .select(`
+        *, 
+        seller_profiles(business_name, logo_url),
+        listings(id, title, category)
+      `)
       .order('created_at', { ascending: false });
       
     if (error) {
@@ -41,6 +46,8 @@ export default function AdminUsersPage() {
     }
     setLoading(false);
   }
+
+  // --- ACTIONS ---
 
   async function makeSeller(userId: string) {
     if (!confirm('Manually upgrade this user to an active seller for 1 year?')) return;
@@ -113,15 +120,28 @@ export default function AdminUsersPage() {
     setActionLoading(null);
   }
 
-  // Search Logic
+  // --- UNIVERSAL SEARCH LOGIC ---
+  // Searches: Name, Email, Phone, User Code, Store Name, Product Title, Product Category
   const filteredUsers = users.filter((u) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      (u.name || '').toLowerCase().includes(query) ||
-      (u.email || '').toLowerCase().includes(query) ||
-      (u.seller_code || '').toLowerCase().includes(query) ||
-      (u.phone || '').includes(query)
+    const q = searchQuery.toLowerCase();
+    
+    // User Info
+    const matchesUser = 
+      (u.name || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.seller_code || '').toLowerCase().includes(q) ||
+      (u.phone || '').includes(q);
+      
+    // Store Info
+    const matchesStore = (u.seller_profiles?.business_name || '').toLowerCase().includes(q);
+    
+    // Listings Info (Search products or categories)
+    const matchesListings = u.listings?.some((l: any) => 
+      (l.title || '').toLowerCase().includes(q) || 
+      (l.category || '').toLowerCase().includes(q)
     );
+
+    return matchesUser || matchesStore || matchesListings;
   });
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -129,14 +149,17 @@ export default function AdminUsersPage() {
   return (
     <div className="relative">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <h1 className="text-2xl font-bold text-foreground">Users & Sellers</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Users & Sellers</h1>
+          <p className="text-sm text-muted-foreground">Search by user, store, product, or category.</p>
+        </div>
         
-        {/* SEARCH BAR */}
+        {/* UNIVERSAL SEARCH BAR */}
         <div className="relative w-full sm:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by name, email, phone, or code..."
+            placeholder="Search everything..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-full border border-border bg-background pl-10 pr-4 py-2.5 text-sm outline-none focus:border-primary"
@@ -219,7 +242,7 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* FULL USER PROFILE MODAL */}
+      {/* FULL USER PROFILE MODAL (RESTORED + NEW FEATURES) */}
       {selectedUser && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setSelectedUser(null)}>
           <div 
@@ -259,6 +282,7 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <span>Phone: {selectedUser.phone || '—'}</span></div>
                 <div className="flex items-center gap-3"><Globe className="h-4 w-4 text-muted-foreground" /> <span>Country: {selectedUser.country}</span></div>
                 <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground" /> <span>Timezone: {selectedUser.timezone}</span></div>
+                <div className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-muted-foreground" /> <span>Auth: {selectedUser.auth_method}</span></div>
                 <div className="flex items-center gap-3"><CreditCard className="h-4 w-4 text-muted-foreground" /> <span>Code: <span className="font-mono font-bold text-primary">{selectedUser.seller_code}</span></span></div>
               </div>
 
@@ -290,7 +314,7 @@ export default function AdminUsersPage() {
               {/* Preferences */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Preferences</h3>
-                <pre className="text-xs bg-secondary/50 p-3 rounded-lg overflow-x-auto">
+                <pre className="text-xs bg-secondary/50 p-3 rounded-lg overflow-x-auto max-h-32">
                   {JSON.stringify(selectedUser.notification_preferences || {}, null, 2)}
                 </pre>
               </div>

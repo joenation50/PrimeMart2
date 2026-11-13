@@ -13,7 +13,7 @@ export default function AdminStoreSettings() {
   const [errorMsg, setErrorMsg] = useState('');
   
   const [profile, setProfile] = useState({
-    real_name: 'PrimeMart Official', // <-- Added
+    real_name: 'PrimeMart Official',
     business_name: 'PrimeMart Official',
     bio: 'The official store of PrimeMart.',
     based_city: 'Lagos',
@@ -33,9 +33,9 @@ export default function AdminStoreSettings() {
       if (seller) {
         setProfile({
           real_name: seller.real_name || userData?.name || 'PrimeMart Official',
-          business_name: seller.business_name || '',
+          business_name: seller.business_name || 'PrimeMart Official',
           bio: seller.bio || '',
-          based_city: seller.based_city || '',
+          based_city: seller.based_city || 'Lagos',
           based_country: seller.based_country || 'NG',
           avatar_url: seller.avatar_url || ''
         });
@@ -85,14 +85,14 @@ export default function AdminStoreSettings() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Upsert including the required real_name
+    // HARDCODED based_country and based_city to prevent NULL errors
     const { error } = await supabase.from('seller_profiles').upsert({
       user_id: user.id,
-      real_name: profile.real_name, // <-- Added here
+      real_name: profile.real_name || 'PrimeMart Official',
       business_name: profile.business_name,
       bio: profile.bio,
-      based_city: profile.based_city,
-      based_country: profile.based_country,
+      based_city: 'Lagos',
+      based_country: 'NG',
       avatar_url: profile.avatar_url
     }, { onConflict: 'user_id' });
 

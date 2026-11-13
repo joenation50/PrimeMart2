@@ -34,9 +34,13 @@ export default function PublicListingPage() {
 
       const { data, error } = await supabase
         .from('listings')
-        .select(`*, users(name, phone, verification_level, rating_avg, rating_count), seller_profiles(business_name, based_city, logo_url)`)
+        .select(`
+          *, 
+          users(name, phone, verification_level, rating_avg, rating_count), 
+          seller_profiles!listings_seller_profile_fkey(business_name, based_city, logo_url)
+        `)
         .eq('id', params.id)
-        .maybeSingle(); // Changed from .single() to .maybeSingle()
+        .maybeSingle();
       
       if (error) {
         setErrorMsg("Database Error: " + error.message);
