@@ -7,13 +7,21 @@ import { Loader2, Upload, X, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
+const FALLBACK_CATEGORIES = [
+  { id: '1', name: 'Fashion' },
+  { id: '2', name: 'Electronics' },
+  { id: '3', name: 'Home' },
+  { id: '4', name: 'Services' },
+  { id: '5', name: 'Vehicles' },
+];
+
 export default function SellerEditListingPage() {
   const router = useRouter();
   const params = useParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>(FALLBACK_CATEGORIES);
 
   const [form, setForm] = useState({
     title: '',
@@ -34,7 +42,7 @@ export default function SellerEditListingPage() {
       if (!user) { router.push('/login'); return; }
 
       const { data: catData } = await supabase.from('categories').select('*').eq('active', true).order('sort_order');
-      setCategories(catData || []);
+      if (catData && catData.length > 0) setCategories(catData);
 
       const { data: listingData } = await supabase.from('listings').select('*').eq('id', params.id).eq('seller_id', user.id).single();
 
@@ -97,7 +105,6 @@ export default function SellerEditListingPage() {
         formData.append('file', file);
         formData.append('upload_preset', 'primemart_preset');
 
-        // UPDATED CLOUD NAME HERE
         const res = await fetch(`https://api.cloudinary.com/v1_1/za4q8nqh/image/upload`, {
           method: 'POST',
           body: formData,

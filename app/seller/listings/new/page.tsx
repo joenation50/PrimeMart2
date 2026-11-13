@@ -7,9 +7,19 @@ import { Loader2, Upload, X, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
+// FALLBACK CATEGORIES: If database fails, use these
+const FALLBACK_CATEGORIES = [
+  { id: '1', name: 'Fashion' },
+  { id: '2', name: 'Electronics' },
+  { id: '3', name: 'Home' },
+  { id: '4', name: 'Services' },
+  { id: '5', name: 'Vehicles' },
+];
+
 export default function SellerNewListingPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
+  // Initialize with fallback so the dropdown is NEVER empty
+  const [categories, setCategories] = useState<any[]>(FALLBACK_CATEGORIES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -28,8 +38,12 @@ export default function SellerNewListingPage() {
   useEffect(() => {
     async function fetchCategories() {
       const supabase = createBrowserSupabase();
-      const { data } = await supabase.from('categories').select('*').eq('active', true).order('sort_order');
-      setCategories(data || []);
+      const { data, error } = await supabase.from('categories').select('*').eq('active', true).order('sort_order');
+      
+      // If database has categories, use them. Otherwise, keep the fallback.
+      if (!error && data && data.length > 0) {
+        setCategories(data);
+      }
       setLoading(false);
     }
     fetchCategories();
@@ -38,10 +52,8 @@ export default function SellerNewListingPage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
     const selectedFiles = Array.from(e.target.files);
-    
     const newFiles = [...files, ...selectedFiles].slice(0, 6);
     setFiles(newFiles);
-
     const newPreviews = newFiles.map(file => URL.createObjectURL(file));
     setPreviews(newPreviews);
   }
@@ -77,7 +89,6 @@ export default function SellerNewListingPage() {
         formData.append('file', file);
         formData.append('upload_preset', 'primemart_preset');
 
-        // UPDATED CLOUD NAME HERE
         const res = await fetch(`https://api.cloudinary.com/v1_1/za4q8nqh/image/upload`, {
           method: 'POST',
           body: formData,
