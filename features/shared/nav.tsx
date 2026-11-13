@@ -67,7 +67,6 @@ export function Nav() {
 
   const sellerIsUnpaid = isSeller && (profile?.seller_status === 'unpaid' || profile?.seller_status === 'pending');
   
-  // NEW ROUTING LOGIC
   const homeHref = isSeller ? (sellerIsUnpaid ? '/seller/paywall' : '/seller') : '/buyer';
 
   function handleBrowseClick(e: React.MouseEvent) {
@@ -99,7 +98,6 @@ export function Nav() {
                 </Link>
               )}
 
-              {/* UPDATED LINKS */}
               {isSeller && !sellerIsUnpaid && <Link href="/seller" className={cn('text-sm font-medium transition', pathname.startsWith('/seller') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Seller Dashboard</Link>}
               {isSeller && sellerIsUnpaid && <Link href="/seller/paywall" className={cn('text-sm font-medium transition', pathname.startsWith('/seller/paywall') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>Activate Account</Link>}
               {isBuyer && <Link href="/buyer" className={cn('text-sm font-medium transition', pathname.startsWith('/buyer') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>My Hub</Link>}
@@ -154,46 +152,58 @@ export function Nav() {
         </div>
       </header>
 
-      {/* MOBILE DOCK */}
-      <div className="floating-dock md:hidden">
-        <Link href="/marketplace" onClick={handleBrowseClick} className={cn("dock-item", pathname === '/marketplace' && "active")}>
-          <Search />
-          <span>Browse</span>
-        </Link>
+      {/* MOBILE DOCK - REWRITTEN WITH PURE TAILWIND TO FIX GLOW BUG */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe md:hidden">
+        <nav className="relative mx-auto flex max-w-md items-center justify-between overflow-hidden rounded-full border border-border/50 bg-background/80 px-2 py-3 shadow-2xl backdrop-blur-xl">
+          {/* The Green Glow - safely contained by overflow-hidden */}
+          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 via-transparent to-primary/10" />
 
-        <Link href={session ? homeHref : '/'} className={cn("dock-item", pathname === homeHref && "active")}>
-          {isSeller ? <LayoutDashboard /> : <Home />}
-          <span>{isSeller ? (sellerIsUnpaid ? 'Pay' : 'Seller') : 'Buyer'}</span>
-        </Link>
+          <Link href="/marketplace" onClick={handleBrowseClick} className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname === '/marketplace' ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+            <Search className="h-6 w-6" />
+            <span className="text-[10px] font-medium">Browse</span>
+            {pathname === '/marketplace' && <div className="absolute -bottom-1 h-1 w-1 rounded-full bg-primary" />}
+          </Link>
 
-        {session ? (
-          <Link href={isSeller ? "/seller/notifications" : "/buyer/notifications"} className={cn("dock-item relative", pathname.includes('/notifications') && "active")}>
-            <Bell />
-            <span>Alerts</span>
+          <Link href={session ? homeHref : '/'} className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname === homeHref ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+            {isSeller ? <LayoutDashboard className="h-6 w-6" /> : <Home className="h-6 w-6" />}
+            <span className="text-[10px] font-medium">{isSeller ? (sellerIsUnpaid ? 'Pay' : 'Seller') : 'Buyer'}</span>
+            {pathname === homeHref && <div className="absolute -bottom-1 h-1 w-1 rounded-full bg-primary" />}
           </Link>
-        ) : (
-          <Link href="/login" className={cn("dock-item", pathname === '/login' && "active")}>
-            <User />
-            <span>Log in</span>
-          </Link>
-        )}
 
-        {isSeller && !sellerIsUnpaid ? (
-          <Link href="/seller/listings/new" className={cn("dock-item", pathname === '/seller/listings/new' && "active")}>
-            <PlusCircle />
-            <span>Add</span>
-          </Link>
-        ) : (
-          <Link href="/buyer/favorites" className={cn("dock-item", pathname === '/buyer/favorites' && "active")}>
-            <Heart />
-            <span>Saved</span>
-          </Link>
-        )}
+          {session ? (
+            <Link href={isSeller ? "/seller/notifications" : "/buyer/notifications"} className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname.includes('/notifications') ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+              <Bell className="h-6 w-6" />
+              <span className="text-[10px] font-medium">Alerts</span>
+              {pathname.includes('/notifications') && <div className="absolute -bottom-1 h-1 w-1 rounded-full bg-primary" />}
+            </Link>
+          ) : (
+            <Link href="/login" className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname === '/login' ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+              <User className="h-6 w-6" />
+              <span className="text-[10px] font-medium">Log in</span>
+              {pathname === '/login' && <div className="absolute -bottom-1 h-1 w-1 rounded-full bg-primary" />}
+            </Link>
+          )}
 
-        <button onClick={() => setMenuOpen(true)} className={cn("dock-item", menuOpen && "active")}>
-          <MoreHorizontal />
-          <span>More</span>
-        </button>
+          {isSeller && !sellerIsUnpaid ? (
+            <Link href="/seller/listings/new" className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname === '/seller/listings/new' ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+              <PlusCircle className="h-6 w-6" />
+              <span className="text-[10px] font-medium">Add</span>
+              {pathname === '/seller/listings/new' && <div className="absolute -bottom-1 h-1 w-1 rounded-full bg-primary" />}
+            </Link>
+          ) : (
+            <Link href="/buyer/favorites" className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname === '/buyer/favorites' ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+              <Heart className="h-6 w-6" />
+              <span className="text-[10px] font-medium">Saved</span>
+              {pathname === '/buyer/favorites' && <div className="absolute -bottom-1 h-1 w-1 rounded-full bg-primary" />}
+            </Link>
+          )}
+
+          <button onClick={() => setMenuOpen(true)} className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", menuOpen ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+            <MoreHorizontal className="h-6 w-6" />
+            <span className="text-[10px] font-medium">More</span>
+            {menuOpen && <div className="absolute -bottom-1 h-1 w-1 rounded-full bg-primary" />}
+          </button>
+        </nav>
       </div>
 
       {/* AUTH PROMPT */}
@@ -238,7 +248,6 @@ export function Nav() {
                     </Link>
                   )}
 
-                  {/* UPDATED MORE LINKS */}
                   <Link href={isSeller ? "/seller/account" : "/buyer/account"} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                     <div className="flex items-center gap-3"><User className="h-5 w-5 text-muted-foreground" /><span className="font-medium">My Profile</span></div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, ShieldCheck, Star, Truck, AlertTriangle } from 'lucide-react';
+import { MapPin, ShieldCheck, Star, Truck, AlertTriangle, Phone, Package, Store } from 'lucide-react';
 import { formatPrice, timeAgo } from '@/lib/format';
 import type { FullListing, TeaserListing } from './types';
 import { ListingActions } from './actions';
@@ -19,9 +19,13 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
 
   const safeData = data as any;
   
-  const images = safeData.images.length > 0 ? safeData.images : ['placeholder'];
+  const images = safeData.images?.length > 0 ? safeData.images : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop'];
   const primaryImage = images[0];
   const sellerName = full?.seller_profile?.business_name || teaser?.seller_name || 'Seller';
+  
+  // Store Link Logic
+  const storeSlug = full?.seller?.store_slug || full?.seller?.seller_code || teaser?.seller_slug;
+  const storeLink = storeSlug ? `/store/${storeSlug}` : null;
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8 pb-24 sm:pb-8">
@@ -30,7 +34,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         <div className="space-y-4">
           <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-muted">
             <Image
-              src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_1200,q_auto,f_auto/${primaryImage}`}
+              src={primaryImage} // FIXED: Using the direct URL from DB
               alt={safeData.title}
               fill
               priority
@@ -42,7 +46,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
               {images.map((img: string, i: number) => (
                 <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                   <Image
-                    src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_200,h_250,c_fill,q_auto,f_auto/${img}`}
+                    src={img} // FIXED: Using the direct URL from DB
                     alt={`${safeData.title} ${i + 1}`}
                     fill
                     className="object-cover"
@@ -62,9 +66,18 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
           </div>
 
           <h1 className="text-2xl font-bold sm:text-3xl">{safeData.title}</h1>
-          <p className="mt-2 text-3xl font-bold">
-            {safeData.price_negotiable ? <span className="text-muted-foreground text-xl">Negotiable</span> : formatPrice(safeData.price, safeData.currency)}
-          </p>
+          
+          <div className="mt-2 flex items-end justify-between">
+            <p className="text-3xl font-bold">
+              {safeData.price_negotiable ? <span className="text-muted-foreground text-xl">Negotiable</span> : formatPrice(safeData.price, safeData.currency)}
+            </p>
+            {/* QUANTITY - Only shows if logged in (full data) */}
+            {isLoggedIn && (
+              <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Package className="h-4 w-4" /> Qty: {safeData.quantity || 1}
+              </p>
+            )}
+          </div>
 
           {/* Delivery & Location */}
           <div className="mt-6 space-y-3 rounded-xl border border-border p-4 text-sm">
@@ -89,24 +102,41 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
 
           {/* Seller Block */}
           <div className="mt-6 rounded-xl border border-border p-4">
-            <Link href={`/seller/${full?.seller_id || teaser?.id}`} className="flex items-center gap-3 transition hover:opacity-80">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-lg font-semibold">
-                {sellerName.charAt(0) || 'S'}
-              </div>
-              <div>
-                <p className="flex items-center gap-1 font-medium">
-                  {sellerName}
-                  {(full?.seller?.verification_level === 'verified' || teaser?.seller_verified) && (
-                    <ShieldCheck className="h-4 w-4 text-blue-500" />
-                  )}
-                </p>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-                  {full?.seller?.rating_avg.toFixed(1) || teaser?.seller_rating.toFixed(1) || '0.0'} 
-                  ({full?.seller?.rating_count || 0} reviews)
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-lg font-semibold">
+                  {sellerName.charAt(0) || 'S'}
+                </div>
+                <div>
+                  <p className="flex items-center gap-1 font-medium">
+                    {sellerName}
+                    {(full?.seller?.verification_level === 'verified' || teaser?.seller_verified) && (
+                      <ShieldCheck className="h-4 w-4 text-blue-500" />
+                    )}
+                  </p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                    {full?.seller?.rating_avg?.toFixed(1) || teaser?.seller_rating?.toFixed(1) || '0.0'} 
+                    ({full?.seller?.rating_count || 0} reviews)
+                  </div>
                 </div>
               </div>
-            </Link>
+
+              {/* VISIT STORE BUTTON */}
+              {storeLink && (
+                <Link href={storeLink} target="_blank" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary/80 transition-colors">
+                  <Store className="h-3.5 w-3.5" /> Visit Store
+                </Link>
+              )}
+            </div>
+
+            {/* PHONE NUMBER - Only shows if logged in */}
+            {isLoggedIn && full?.seller?.phone && (
+              <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 text-sm font-medium">
+                <Phone className="h-4 w-4 text-primary" />
+                {full.seller.phone}
+              </div>
+            )}
           </div>
 
           {/* Description (Gated) */}
@@ -130,7 +160,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             <p className="mt-1 opacity-90">Never pay before seeing the item. PrimeMart does not hold funds or mediate disputes.</p>
           </div>
 
-          {/* WhatsApp Action */}
+          {/* WhatsApp Action (Desktop) */}
           <div className="mt-6 hidden sm:block">
             <ListingActions
               listingId={safeData.id}

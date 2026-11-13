@@ -1,9 +1,8 @@
-// features/listing/actions.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, Heart, Share2, Flag, ShieldAlert } from 'lucide-react';
+import { MessageCircle, Heart, Share2 } from 'lucide-react';
 import { trackWhatsAppClick, toggleFavorite } from '@/actions/social';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +27,10 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
   
   async function handleWhatsApp() {
     if (!isLoggedIn) {
-      router.push(`/login?next=/listing/${listingId}`);
+      // 1. Show the prompt you requested
+      alert("Please join PrimeMart to view contact details and message this seller.");
+      // 2. Redirect them to login, using 'redirect' so they come back here after
+      router.push(`/login?redirect=/listing/${listingId}`);
       return;
     }
     if (!sellerPhone) return;
@@ -41,7 +43,8 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
   
   async function handleFavorite() {
     if (!isLoggedIn) {
-      router.push(`/login?next=/listing/${listingId}`);
+      alert("Please join PrimeMart to save your favorite items.");
+      router.push(`/login?redirect=/listing/${listingId}`);
       return;
     }
     setFavorited(!favorited);

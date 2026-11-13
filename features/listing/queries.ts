@@ -15,7 +15,7 @@ export async function getListingData(id: string): Promise<{
     .from('listings')
     .select(`
       *,
-      seller:seller_id(id, name, phone, rating_avg, rating_count, verification_level, last_active_at),
+      seller:seller_id(id, name, phone, rating_avg, rating_count, verification_level, last_active_at, store_slug, seller_code),
       seller_profile:seller_id(business_name, avatar_url, based_city, based_region),
       category:category_id(name, slug)
     `)
@@ -28,6 +28,7 @@ export async function getListingData(id: string): Promise<{
   const sellerProfile = Array.isArray(listing.seller_profile) ? listing.seller_profile[0] : listing.seller_profile;
   const seller = Array.isArray(listing.seller) ? listing.seller[0] : listing.seller;
 
+  // Added store_slug and seller_code to teaser so guests can visit the store
   const teaser: TeaserListing = {
     id: listing.id,
     title: listing.title,
@@ -39,6 +40,7 @@ export async function getListingData(id: string): Promise<{
     seller_name: sellerProfile?.business_name ?? 'Seller',
     seller_verified: seller?.verification_level === 'verified',
     seller_rating: seller?.rating_avg ?? 0,
+    seller_slug: seller?.store_slug || seller?.seller_code || null,
     created_at: listing.created_at,
   };
 

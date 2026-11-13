@@ -19,25 +19,38 @@ export function ListingCard({
   showFavorite?: boolean;
 }) {
   const [favorited, setFavorited] = useState(isFavorited);
+  const [imgError, setImgError] = useState(false);
   
-  // Fallback image if none exists
-  const primaryImage = listing.images?.[0] 
-    ? `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_600,h_750,c_fill,q_auto,f_auto/${listing.images[0]}`
+  // FIXED IMAGE LOGIC: We check if the URL already starts with 'http'
+  // If it does, we use it directly. If not, we fallback.
+  const rawImage = listing.images?.[0];
+  const primaryImage = rawImage && rawImage.startsWith('http') 
+    ? rawImage 
     : "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop";
 
-  const sellerName = listing.seller_profile?.business_name || listing.users?.name || 'Seller';
+  // FIXED TYPO: Changed seller_profile to seller_profiles
+  const sellerName = listing.seller_profiles?.business_name || listing.users?.name || 'Seller';
   const isVerified = listing.users?.verification_level === 'verified';
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
       <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-secondary border border-border/50">
-        <Image
-          src={primaryImage}
-          alt={listing.title}
-          fill
-          sizes="(max-width: 768px) 50vw, 25vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+        
+        {/* IMAGE OR FALLBACK */}
+        {!imgError ? (
+          <Image
+            src={primaryImage}
+            alt={listing.title}
+            fill
+            sizes="(max-width: 768px) 50vw, 25vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-secondary text-muted-foreground text-xs font-medium">
+            No Image Available
+          </div>
+        )}
 
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />

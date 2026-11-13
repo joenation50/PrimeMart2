@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { Loader2, MessageCircle, ShieldCheck, MapPin, ArrowLeft, Heart, Share2, Flag, Star, AlertCircle } from 'lucide-react';
+import { 
+  Loader2, MessageCircle, ShieldCheck, MapPin, ArrowLeft, 
+  Heart, Share2, Flag, Star, AlertCircle, Phone, Package, Store 
+} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/format';
@@ -24,19 +27,16 @@ export default function PublicListingPage() {
     async function fetchListing() {
       const supabase = createBrowserSupabase();
       
+      // 1. Get current user (can be null if guest)
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace(`/login?redirect=/listing/${params.id}`);
-        return;
-      }
-      
       setCurrentUser(user);
 
+      // 2. Fetch listing details (Added store_slug and seller_code to get the store link)
       const { data, error } = await supabase
         .from('listings')
         .select(`
           *, 
-          users(name, phone, verification_level, rating_avg, rating_count), 
+          users(name, phone, store_slug, seller_code, verification_level, rating_avg, rating_count), 
           seller_profiles!listings_seller_profile_fkey(business_name, based_city, logo_url)
         `)
         .eq('id', params.id)
@@ -46,30 +46,43 @@ export default function PublicListingPage() {
         setErrorMsg("Database Error: " + error.message);
       } else if (data) {
         setListing(data);
-        trackView(data.id);
+        
+        // Track view if logged in
+        if (user) {
+          trackView(data.id);
+        }
 
-        const { data: fav } = await supabase
-          .from('favorites')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('listing_id', data.id)
-          .maybeSingle();
-        setIsFavorited(!!fav);
+        // Check if favorited
+        if (user) {
+          const { data: fav } = await supabase
+            .from('favorites')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('listing_id', data.id)
+            .maybeSingle();
+          setIsFavorited(!!fav);
+        }
       }
       setLoading(false);
     }
     fetchListing();
-  }, [params.id, router]);
+  }, [params.id]);
 
   async function handleFavorite() {
-    if (!currentUser) return;
+    if (!currentUser) {
+      alert("Please join PrimeMart to save your favorite items!");
+      router.push(`/login?redirect=/listing/${params.id}`);
+      return;
+    }
     setIsFavorited(!isFavorited);
     await toggleFavorite(listing.id);
   }
 
-  function handleWhatsAppClick(e: React.MouseEvent) {
+  function handleContactClick(e: React.MouseEvent) {
     if (!currentUser) {
       e.preventDefault();
+      alert("Please join PrimeMart to view contact details and message this seller.");
+      router.push(`/login?redirect=/listing/${params.id}`);
       return;
     }
     trackWhatsAppClick(listing.id);
@@ -102,9 +115,14 @@ export default function PublicListingPage() {
   const sellerName = listing.seller_profiles?.business_name || listing.users?.name || 'Seller';
   const sellerLogo = listing.seller_profiles?.logo_url;
   const isVerified = listing.users?.verification_level === 'verified';
+  const phoneNumber = listing.users?.phone;
   
-  const whatsappLink = listing.users?.phone 
-    ? `https://wa.me/${listing.users.phone.replace(/\D/g, '')}?text=Hi, I saw your listing '${listing.title}' on PrimeMart. Is it still available?`
+  // Construct the store link
+  const storeIdentifier = listing.users?.store_slug || listing.users?.seller_code;
+  const storeLink = storeIdentifier ? `/store/${storeIdentifier}` : null;
+  
+  const whatsappLink = phoneNumber 
+    ? `https://wa.me/${phoneNumber.replace(/\D/g, '')}?text=Hi, I saw your listing '${listing.title}' on PrimeMart. Is it still available?`
     : null;
   
   const images = listing.images || [];
@@ -140,34 +158,71 @@ export default function PublicListingPage() {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{listing.category || 'General'}</span>
             </div>
+            
             <h1 className="text-3xl font-bold text-foreground mb-2">{listing.title}</h1>
-            <p className="text-3xl font-bold text-primary mb-6">{listing.price_negotiable ? 'Negotiable' : formatPrice(listing.price, listing.currency)}</p>
+            
+            <div className="flex items-end justify-between mb-6">
+              <p className="text-3xl font-bold text-primary">{listing.price_negotiable ? 'Negotiable' : formatPrice(listing.price, listing.currency)}</p>
+              <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Package className="h-4 w-4" /> Qty: {listing.quantity || 1}
+              </p>
+            </div>
 
-            <div className="glass-card rounded-2xl p-4 flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <div className="relative h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-lg font-bold overflow-hidden shrink-0">
-                  {sellerLogo ? (
-                    <Image src={sellerLogo} alt={sellerName} fill className="object-cover" />
-                  ) : (
-                    sellerName.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div>
-                  <p className="font-semibold flex items-center gap-1">{sellerName} {isVerified && <ShieldCheck className="h-4 w-4 text-primary" />}</p>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {listing.seller_profiles?.based_city || listing.location || 'Nigeria'}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-                    <span className="text-xs font-medium">{listing.users?.rating_avg?.toFixed(1) || '0.0'} ({listing.users?.rating_count || 0} reviews)</span>
+            {/* SELLER & CONTACT BLOCK */}
+            <div className="glass-card rounded-2xl p-4 flex flex-col gap-3 mb-6">
+              
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-4">
+                  <div className="relative h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-lg font-bold overflow-hidden shrink-0">
+                    {sellerLogo ? (
+                      <Image src={sellerLogo} alt={sellerName} fill className="object-cover" />
+                    ) : (
+                      sellerName.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-semibold flex items-center gap-1">{sellerName} {isVerified && <ShieldCheck className="h-4 w-4 text-primary" />}</p>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {listing.seller_profiles?.based_city || listing.location || 'Nigeria'}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                      <span className="text-xs font-medium">{listing.users?.rating_avg?.toFixed(1) || '0.0'} ({listing.users?.rating_count || 0} reviews)</span>
+                    </div>
                   </div>
                 </div>
+
+                {/* VISIT STORE BUTTON */}
+                {storeLink && (
+                  <Link 
+                    href={storeLink} 
+                    target="_blank"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary/80 transition-colors"
+                  >
+                    <Store className="h-3.5 w-3.5" /> Visit Store
+                  </Link>
+                )}
               </div>
+
+              {/* SHOW PHONE NUMBER IF LOGGED IN */}
+              {currentUser && phoneNumber && (
+                <div className="mt-2 pt-3 border-t border-border flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Phone className="h-4 w-4 text-primary" />
+                  {phoneNumber}
+                </div>
+              )}
             </div>
 
             <div className="text-muted-foreground whitespace-pre-wrap mb-8">{listing.description}</div>
 
+            {/* DESKTOP ACTIONS */}
             <div className="hidden md:flex gap-2 mt-auto">
               {whatsappLink ? (
-                <a href={whatsappLink} onClick={handleWhatsAppClick} target="_blank" rel="noreferrer" className="flex flex-1 items-center justify-center gap-2 rounded-full bg-green-500 py-4 font-bold text-white hover:bg-green-600 shadow-lg">
+                <a 
+                  href={currentUser ? whatsappLink : '#'} 
+                  onClick={handleContactClick} 
+                  target={currentUser ? "_blank" : "_self"} 
+                  rel="noreferrer" 
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-green-500 py-4 font-bold text-white hover:bg-green-600 shadow-lg"
+                >
                   <MessageCircle className="h-5 w-5" /> Message on WhatsApp
                 </a>
               ) : (
@@ -185,7 +240,13 @@ export default function PublicListingPage() {
       {/* MOBILE STICKY ACTIONS */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-md border-t border-border z-40 flex gap-2">
         {whatsappLink ? (
-          <a href={whatsappLink} onClick={handleWhatsAppClick} target="_blank" rel="noreferrer" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-500 py-3 font-bold text-white">
+          <a 
+            href={currentUser ? whatsappLink : '#'} 
+            onClick={handleContactClick} 
+            target={currentUser ? "_blank" : "_self"} 
+            rel="noreferrer" 
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-500 py-3 font-bold text-white"
+          >
             <MessageCircle className="h-5 w-5" /> WhatsApp
           </a>
         ) : (
