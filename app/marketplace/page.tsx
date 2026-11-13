@@ -5,7 +5,7 @@ import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { ListingCard, ListingGrid, SkeletonGrid } from '@/features/marketplace/grid';
 import { 
   Search, Bell, Settings, ShoppingCart, AlertCircle, Package,
-  Shirt, Smartphone, Home, Wrench, Car, Tag, CheckCircle2, Store
+  Shirt, Smartphone, Home, Wrench, Car, Tag, ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -55,7 +55,7 @@ export default function MarketplacePage() {
   const [listings, setListings] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [verifiedSellers, setVerifiedSellers] = useState<any[]>([]); // <-- New State
+  const [userProfile, setUserProfile] = useState<any>(null); // <-- User Profile State
   
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -67,26 +67,30 @@ export default function MarketplacePage() {
   const [maxPrice, setMaxPrice] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  // Fetch Initial Data (Banners, Categories, Verified Sellers)
+  // Fetch Initial Data (Banners, Categories, User Profile)
   useEffect(() => {
     async function fetchGlobalData() {
       const supabase = createBrowserSupabase();
       
-      const [bannerRes, catRes, sellerRes] = await Promise.all([
+      // 1. Fetch User Profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('name, role, seller_profiles(business_name)')
+          .eq('id', user.id)
+          .single();
+        if (profile) setUserProfile(profile);
+      }
+
+      // 2. Fetch Banners & Categories
+      const [bannerRes, catRes] = await Promise.all([
         supabase.from('banners').select('*').eq('active', true).order('created_at', { ascending: false }),
-        supabase.from('categories').select('*').eq('active', true).order('sort_order'),
-        // Fetch top verified sellers (ordered by rating)
-        supabase.from('users')
-          .select(`id, name, store_slug, seller_code, rating_avg, seller_profiles(business_name, logo_url, based_city)`)
-          .eq('verification_level', 'verified')
-          .eq('role', 'seller')
-          .order('rating_avg', { ascending: false })
-          .limit(6)
+        supabase.from('categories').select('*').eq('active', true).order('sort_order')
       ]);
       
       if (bannerRes.data) setBanners(bannerRes.data);
       if (catRes.data) setCategories(catRes.data);
-      if (sellerRes.data) setVerifiedSellers(sellerRes.data);
     }
     fetchGlobalData();
   }, []);
@@ -128,6 +132,8 @@ export default function MarketplacePage() {
 
       if (minPrice && !isNaN(Number(minPrice))) query = query.gte('price', Number(minPrice));
       if (maxPrice && !isNaN(Number(maxPrice))) query = query.lte('price', Number(maxPrice));
+      
+      // If a category is clicked, filter by it
       if (activeCategory !== 'All') query = query.ilike('category', activeCategory);
 
       query = query.order('created_at', { ascending: false });
@@ -142,8 +148,18 @@ export default function MarketplacePage() {
     }
   }
 
+  // Handle clicking a category
   function handleCategoryClick(categoryName: string) {
-    setActiveCategory(activeCategory === categoryName ? 'All' : categoryName);
+    setSearchQuery(''); // Clear text search
+    setActiveCategory(categoryName); // Set category to trigger fetch
+  }
+
+  // Clear all filters
+  function clearFilters() {
+    setSearchQuery('');
+    setMinPrice('');
+    setMaxPrice('');
+    setActiveCategory('All');
   }
 
   const groupedListings = listings.reduce((acc, listing) => {
@@ -155,6 +171,11 @@ export default function MarketplacePage() {
 
   const recommended = listings.slice(0, 6);
 
+  // Determine greeting name
+  const greetingName = userProfile?.role === 'seller' 
+    ? (userProfile?.seller_profiles?.business_name || userProfile?.name || 'Seller')
+    : (userProfile?.name || 'Shopper');
+
   return (
     <div className="min-h-screen bg-background pb-32">
       
@@ -164,7 +185,7 @@ export default function MarketplacePage() {
           <ShoppingCart className="h-8 w-8 text-white" />
           <div className="flex flex-col items-center">
             <h1 className="text-xl font-bold text-white flex items-center gap-1">
-              Hi, Shopper <span className="text-xl">👋</span>
+              Hi, {greetingName} <span className="text-xl">👋</span>
             </h1>
             <p className="text-[13px] text-white/80 mt-0.5">Find everything you need</p>
           </div>
@@ -188,7 +209,7 @@ export default function MarketplacePage() {
               type="text" 
               placeholder="Search items, brands..." 
               value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
+              onChange={(e) => { setSearchQuery(e.target.value); setActiveCategory('All'); }} 
               className="w-full rounded-2xl border border-border bg-background pl-12 pr-4 py-4 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary" 
             />
           </div>
@@ -226,7 +247,7 @@ export default function MarketplacePage() {
             {POPULAR_SEARCHES.map((term) => (
               <button 
                 key={term}
-                onClick={() => setSearchQuery(term)}
+                onClick={() => { setSearchQuery(term); setActiveCategory('All'); }}
                 className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
               >
                 {term}
@@ -248,9 +269,16 @@ export default function MarketplacePage() {
         {/* SEARCH RESULTS / FILTERED VIEW */}
         {hasSearched ? (
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Package className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-bold text-foreground">Matched Items</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">
+                  {activeCategory !== 'All' ? `Best in ${activeCategory}` : 'Matched Items'}
+                </h2>
+              </div>
+              <button onClick={clearFilters} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+                Clear Filters
+              </button>
             </div>
 
             {loading ? (
@@ -264,10 +292,7 @@ export default function MarketplacePage() {
                 <p className="text-sm text-muted-foreground max-w-[250px]">
                   Try adjusting your price filters or checking your spelling.
                 </p>
-                <button 
-                  onClick={() => { setSearchQuery(''); setMinPrice(''); setMaxPrice(''); setActiveCategory('All'); }}
-                  className="mt-6 text-sm font-bold text-primary"
-                >
+                <button onClick={clearFilters} className="mt-6 text-sm font-bold text-primary">
                   Clear all filters
                 </button>
               </div>
@@ -277,9 +302,30 @@ export default function MarketplacePage() {
           </div>
         ) : (
           
-          /* HOMEPAGE VIEW (Categories, Banners, Verified Sellers, Grouped Rows) */
+          /* HOMEPAGE VIEW (Categories, Banners, Grouped Rows) */
           <div className="space-y-8">
             
+            {/* HERO BANNER FROM ADMIN */}
+            {banners.length > 0 && (
+              <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {banners.map((banner) => (
+                  <Link 
+                    key={banner.id} 
+                    href={banner.cta_url || '/marketplace'} 
+                    className="group relative flex h-[160px] w-full shrink-0 snap-center overflow-hidden rounded-3xl bg-primary"
+                  >
+                    {banner.image_url && (
+                      <Image src={banner.image_url} alt={banner.headline} fill className="object-cover opacity-30 mix-blend-overlay" />
+                    )}
+                    <div className="relative z-10 flex flex-col justify-center p-6 w-3/4">
+                      <h2 className="text-2xl font-extrabold text-primary-foreground leading-tight">{banner.headline}</h2>
+                      {banner.subtext && <p className="mt-2 text-sm text-primary-foreground/90">{banner.subtext}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+
             {/* CATEGORY GRID */}
             {categories.length > 0 && (
               <div>
@@ -306,74 +352,6 @@ export default function MarketplacePage() {
               </div>
             )}
 
-            {/* NEW: VERIFIED SELLERS CATEGORY */}
-            {verifiedSellers.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" /> Verified Sellers
-                  </h2>
-                  <Link href="/verified-sellers" className="text-sm font-semibold text-primary">
-                    See all
-                  </Link>
-                </div>
-                
-                <div className="flex gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {verifiedSellers.map((seller) => {
-                    const storeName = seller.seller_profiles?.business_name || seller.name || 'Verified Store';
-                    const storeLogo = seller.seller_profiles?.logo_url;
-                    const storeSlug = seller.store_slug || seller.seller_code;
-                    
-                    return (
-                      <Link 
-                        key={seller.id} 
-                        href={`/store/${storeSlug}`}
-                        className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-4 text-center shadow-sm transition-transform hover:-translate-y-1"
-                      >
-                        <div className="relative mb-3 h-16 w-16 overflow-hidden rounded-full bg-muted flex items-center justify-center">
-                          {storeLogo ? (
-                            <Image src={storeLogo} alt={storeName} fill className="object-cover" />
-                          ) : (
-                            <Store className="h-6 w-6 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-center gap-1 w-full mb-1">
-                          <h3 className="font-bold text-foreground text-[13px] truncate max-w-[90px]">
-                            {storeName}
-                          </h3>
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-                        </div>
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase truncate w-full">
-                          {seller.seller_profiles?.based_city || 'Top Seller'}
-                        </p>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* BANNERS */}
-            {banners.length > 0 && (
-              <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {banners.map((banner) => (
-                  <Link 
-                    key={banner.id} 
-                    href={banner.cta_url || '/marketplace'} 
-                    className="group relative flex h-[160px] w-full shrink-0 snap-center overflow-hidden rounded-3xl bg-primary"
-                  >
-                    {banner.image_url && (
-                      <Image src={banner.image_url} alt={banner.headline} fill className="object-cover opacity-30 mix-blend-overlay" />
-                    )}
-                    <div className="relative z-10 flex flex-col justify-center p-6 w-3/4">
-                      <h2 className="text-2xl font-extrabold text-primary-foreground leading-tight">{banner.headline}</h2>
-                      {banner.subtext && <p className="mt-2 text-sm text-primary-foreground/90">{banner.subtext}</p>}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-
             {/* AUTO-SCROLL ROWS */}
             {loading ? (
               <div className="space-y-8">
@@ -391,11 +369,18 @@ export default function MarketplacePage() {
                   </div>
                 )}
 
+                {/* GROUPED LISTINGS BY CATEGORY */}
                 {Object.entries(groupedListings).map(([category, items]) => (
                   <div key={category}>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-xl font-bold text-foreground">Best in {category}</h2>
-                      <button onClick={() => setActiveCategory(category)} className="text-sm font-semibold text-primary">See all</button>
+                      {/* TAPPING THIS TRIGGERS THE FILTER VIEW */}
+                      <button 
+                        onClick={() => handleCategoryClick(category)} 
+                        className="text-sm font-semibold text-primary flex items-center gap-1 hover:underline"
+                      >
+                        See all <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                     <AutoScrollRow items={items as any[]} />
                   </div>

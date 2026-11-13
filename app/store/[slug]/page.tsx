@@ -11,7 +11,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ListingGrid } from '@/features/marketplace/grid';
 import { formatDate } from '@/lib/format';
-import { ReviewModal } from '@/features/store/ReviewModal'; // <-- IMPORT MODAL
 
 export default function PublicStorePage() {
   const params = useParams();
@@ -24,57 +23,56 @@ export default function PublicStorePage() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
-  
-  // State for the modal
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-
-  // Extract fetch logic so we can call it again after submitting a review
-  const fetchStoreData = async () => {
-    const supabase = createBrowserSupabase();
-    try {
-      const { data: owner, error: ownerError } = await supabase
-        .from('users')
-        .select(`
-          id, name, phone, store_slug, seller_code, verification_level,
-          seller_profiles(business_name, logo_url, based_city, bio, categories)
-        `)
-        .or(`store_slug.eq.${slug},seller_code.eq.${slug}`)
-        .maybeSingle();
-
-      if (ownerError || !owner) throw new Error('Store not found');
-      setStoreOwner(owner);
-
-      const { data: storeListings } = await supabase
-        .from('listings')
-        .select('*')
-        .eq('seller_id', owner.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-      setListings(storeListings || []);
-
-      const { data: storeReviews } = await supabase
-        .from('reviews')
-        .select(`*, buyer:buyer_id(name)`)
-        .eq('seller_id', owner.id)
-        .eq('status', 'visible')
-        .order('created_at', { ascending: false });
-      setReviews(storeReviews || []);
-
-    } catch (err: any) {
-      setErrorMsg(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    async function init() {
+    async function fetchStore() {
       const supabase = createBrowserSupabase();
+      
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
-      await fetchStoreData();
+
+      try {
+        // 1. Fetch Store Owner
+        const { data: owner, error: ownerError } = await supabase
+          .from('users')
+          .select(`
+            id, name, phone, store_slug, seller_code, verification_level,
+            seller_profiles(business_name, logo_url, based_city, bio, categories)
+          `)
+          .or(`store_slug.eq.${slug},seller_code.eq.${slug}`)
+          .maybeSingle();
+
+        if (ownerError || !owner) throw new Error('Store not found');
+        setStoreOwner(owner);
+
+        // 2. Fetch Store Listings
+        const { data: storeListings } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('seller_id', owner.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
+        
+        setListings(storeListings || []);
+
+        // 3. Fetch Store Reviews
+        const { data: storeReviews } = await supabase
+          .from('reviews')
+          .select(`*, buyer:buyer_id(name)`)
+          .eq('seller_id', owner.id)
+          .eq('status', 'visible')
+          .order('created_at', { ascending: false });
+
+        setReviews(storeReviews || []);
+
+      } catch (err: any) {
+        setErrorMsg(err.message);
+      } finally {
+        setLoading(false);
+      }
     }
-    if (slug) init();
+
+    if (slug) fetchStore();
   }, [slug]);
 
   async function handleShare() {
@@ -112,19 +110,6 @@ export default function PublicStorePage() {
     router.push(`/report?type=seller&id=${storeOwner.id}`);
   }
 
-  function handleWriteReview() {
-    if (!currentUser) {
-      alert("Please sign in to leave a review.");
-      router.push(`/login?redirect=/store/${slug}`);
-      return;
-    }
-    if (currentUser.id === storeOwner.id) {
-      alert("You cannot review your own store.");
-      return;
-    }
-    setIsReviewModalOpen(true);
-  }
-
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -153,55 +138,97 @@ export default function PublicStorePage() {
     <div className="min-h-screen bg-background pb-24">
       
       {/* CUSTOM HEADER */}
-      <header className="sticky top-0 z-50 flex items-center justify-between bg-background/90 px-4 py-4 backdrop-blur-md">
-        <button onClick={() => router.back()} className="flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border text-foreground hover:bg-muted transition-colors">
+      <header className="sticky top-0 z-50 flex items-center justify-between bg-background/90 px-4 py-4 backdrop-blur-md border-b border-border/50">
+        <button onClick={() => router.back()} className="flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border text-foreground hover:bg-muted transition-colors shadow-sm">
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="text-lg font-bold text-foreground">Store Profile</h1>
-        <button onClick={handleShare} className="flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border text-foreground hover:bg-muted transition-colors">
+        <button onClick={handleShare} className="flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border text-foreground hover:bg-muted transition-colors shadow-sm">
           <Share2 className="h-5 w-5" />
         </button>
       </header>
 
-      {/* BANNER SECTION */}
-      <div className="relative overflow-hidden">
-        {/* Watermark */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-          <Image src="/logo-white.png" alt="Watermark" width={400} height={400} className="hidden dark:block object-contain scale-150" />
-          <Image src="/logo-black.png" alt="Watermark" width={400} height={400} className="block dark:hidden object-contain scale-150" />
+      {/* MODERN MESH GRADIENT BANNER */}
+      <div className="relative">
+        {/* Glowing shapes for the modern background */}
+        <div className="h-56 w-full overflow-hidden bg-gradient-to-b from-primary/10 to-transparent relative">
+          <div className="absolute -top-20 -left-20 h-64 w-64 rounded-full bg-primary/20 blur-[80px]" />
+          <div className="absolute top-0 right-0 h-48 w-48 rounded-full bg-emerald-500/20 blur-[60px]" />
+          <div className="absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-teal-500/20 blur-[50px]" />
         </div>
 
-        <div className="h-48 w-full bg-gradient-to-br from-primary/20 to-primary/5" />
+        {/* CSS Keyframes for the Floating Motion */}
+        <style jsx>{`
+          @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+          }
+          .animate-float {
+            animation: float 5s ease-in-out infinite;
+          }
+          .animate-float:hover {
+            animation-play-state: paused;
+          }
+        `}</style>
 
-        <div className="mx-auto max-w-lg px-4 -mt-24 relative z-10">
-          <div className="rounded-3xl bg-card border border-border shadow-xl p-6 text-center">
-            <div className="relative mx-auto -mt-16 mb-4 h-24 w-24 rounded-full border-4 border-background bg-muted overflow-hidden shadow-lg flex items-center justify-center">
+        {/* FLOATING GLASSMORPHISM PROFILE CARD */}
+        <div className="mx-auto max-w-lg px-4 -mt-28 relative z-10">
+          <div className="animate-float rounded-[2rem] bg-card/80 backdrop-blur-2xl border border-white/10 dark:border-white/5 shadow-2xl p-6 text-center transition-transform duration-300 hover:scale-[1.02]">
+            
+            {/* Logo */}
+            <div className="relative mx-auto -mt-16 mb-4 h-24 w-24 rounded-full border-4 border-background bg-muted overflow-hidden shadow-xl flex items-center justify-center">
               {storeLogo ? (
                 <Image src={storeLogo} alt={storeName} fill className="object-cover" />
               ) : (
                 <span className="text-3xl font-bold text-primary">{storeName.charAt(0).toUpperCase()}</span>
               )}
             </div>
+
+            {/* Store Name & Verification */}
             <h2 className="text-2xl font-extrabold text-foreground flex items-center justify-center gap-2 mb-2">
               {storeName}
               {isVerified && <CheckCircle2 className="h-6 w-6 text-primary fill-primary/20" />}
             </h2>
-            <div className="inline-block rounded-full bg-primary/10 px-4 py-1.5 mb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary">{category}</span>
+
+            {/* Category Chip */}
+            <div className="inline-block rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                {category}
+              </span>
             </div>
+
+            {/* Location */}
             <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground mb-6">
               <MapPin className="h-4 w-4" />
               <span>{location}</span>
             </div>
-            <div className="rounded-2xl bg-secondary/50 border border-border/50 p-5 mb-6">
-              <p className="text-sm text-foreground leading-relaxed">{bio}</p>
+
+            {/* Bio Box */}
+            <div className="rounded-2xl bg-background/50 border border-border/50 p-5 mb-6">
+              <p className="text-sm text-foreground leading-relaxed">
+                {bio}
+              </p>
             </div>
-            <button onClick={handleMessageStore} className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors mb-4">
-              <MessageCircle className="h-5 w-5" /> Message Store
+
+            {/* Message Store Button */}
+            <button 
+              onClick={handleMessageStore}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors mb-4"
+            >
+              <MessageCircle className="h-5 w-5" />
+              Message Store
             </button>
-            <button onClick={handleReport} className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-500 hover:text-red-400 transition-colors">
-              <Flag className="h-4 w-4" /> Report Vendor
+
+            {/* Report Vendor */}
+            <button 
+              onClick={handleReport}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-500 hover:text-red-400 transition-colors"
+            >
+              <Flag className="h-4 w-4" />
+              Report Vendor
             </button>
+
           </div>
         </div>
       </div>
@@ -212,7 +239,14 @@ export default function PublicStorePage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-foreground">Store Reviews</h3>
             <button 
-              onClick={handleWriteReview} // <-- Connects to the modal
+              onClick={() => {
+                if (!currentUser) {
+                  alert("Please sign in to leave a review.");
+                  router.push(`/login?redirect=/store/${slug}`);
+                  return;
+                }
+                alert("Review modal will open here!");
+              }} 
               className="rounded-full bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
             >
               Write Review
@@ -252,16 +286,6 @@ export default function PublicStorePage() {
           <ListingGrid listings={listings} />
         )}
       </div>
-
-      {/* RENDER THE MODAL */}
-      {isReviewModalOpen && (
-        <ReviewModal 
-          sellerId={storeOwner.id}
-          sellerName={storeName}
-          onClose={() => setIsReviewModalOpen(false)}
-          onSuccess={() => fetchStoreData()} // Refresh the reviews list
-        />
-      )}
 
     </div>
   );
