@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { 
   MapPin, ShieldCheck, Star, Truck, AlertTriangle, 
-  Phone, Package, Store, ArrowLeft, Tag, Calendar, Box, Share2, Image as ImageIcon
+  Phone, Package, Store, ArrowLeft, Tag, Calendar, Box, Share2, ImageOff
 } from 'lucide-react';
 import { formatPrice, timeAgo, formatDate } from '@/lib/format';
 import type { FullListing, TeaserListing } from './types';
@@ -19,25 +19,30 @@ interface ListingDetailProps {
 
 export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) {
   const [activeImage, setActiveImage] = useState(0);
+  const [brokenThumbnails, setBrokenThumbnails] = useState<Record<number, boolean>>({});
+  
   const data = full || teaser;
   
   if (!data) return null;
 
   const safeData = data as any;
 
-  // --- THE ULTIMATE URL PARSER ---
+  // --- THE ULTIMATE FORGIVING URL PARSER ---
   const getImageUrl = (rawUrl: any) => {
     if (!rawUrl || typeof rawUrl !== 'string') return null;
     
     // Remove quotes, brackets, spaces
     let cleanUrl = rawUrl.trim().replace(/["'\[\]]/g, '');
     
+    // Reject literal strings
+    if (cleanUrl === 'undefined' || cleanUrl === 'null' || cleanUrl === '') return null;
+
     // If it's already a full URL
     if (cleanUrl.startsWith('http')) {
       return cleanUrl;
     }
     
-    // If it's just a filename (like from older uploads)
+    // If it's just a filename
     if (cleanUrl.length > 0) {
       return `https://res.cloudinary.com/za4q8nqh/image/upload/w_1200,q_auto,f_auto/${cleanUrl}`;
     }
@@ -93,7 +98,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         <div className="space-y-4">
           <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm flex items-center justify-center">
             {primaryImage ? (
-              // Standard <img> tag bypasses all Next.js bugs
               <img
                 src={primaryImage}
                 alt={safeData.title}
@@ -113,26 +117,39 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
           {/* THUMBNAILS */}
           {images.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">
-              {images.map((img, i) => (
-                <button 
-                  key={i} 
-                  type="button"
-                  onClick={() => setActiveImage(i)} 
-                  className={cn(
-                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 cursor-pointer transition-all bg-secondary", 
-                    activeImage === i ? "border-primary ring-2 ring-primary/20" : "border-border opacity-70 hover:opacity-100"
-                  )}
-                >
-                  <img 
-                    src={img} 
-                    alt={`View ${i+1}`} 
-                    className="w-full h-full object-cover" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=100&auto=format&fit=crop';
-                    }}
-                  />
-                </button>
-              ))}
+              {images.map((img, i) => {
+                // If this specific image failed to load previously, show a broken placeholder
+                if (brokenThumbnails[i]) {
+                  return (
+                    <div key={i} className="relative flex flex-col items-center justify-center h-20 w-20 shrink-0 rounded-xl border-2 border-red-500/20 bg-red-500/5 text-red-500/50">
+                      <ImageOff className="h-6 w-6 mb-1" />
+                      <span className="text-[9px] font-bold">Broken</span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <button 
+                    key={i} 
+                    type="button"
+                    onClick={() => setActiveImage(i)} 
+                    className={cn(
+                      "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 cursor-pointer transition-all bg-secondary", 
+                      activeImage === i ? "border-primary ring-2 ring-primary/20" : "border-border opacity-70 hover:opacity-100"
+                    )}
+                  >
+                    <img 
+                      src={img} 
+                      alt={`View ${i+1}`} 
+                      className="w-full h-full object-cover" 
+                      onError={() => {
+                        // If this thumbnail fails to load, mark it as broken
+                        setBrokenThumbnails(prev => ({ ...prev, [i]: true }));
+                      }}
+                    />
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
