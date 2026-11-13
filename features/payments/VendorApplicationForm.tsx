@@ -8,16 +8,20 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
+// Updated fallback to include all 12 categories
+const FALLBACK_CATEGORIES = [
+  'Fashion', 'Electronics', 'Gadgets', 'Home', 'Services', 
+  'Vehicles', 'Transport', 'Food', 'Beauty', 'Health', 'Tutorials', 'Others'
+];
+
 export function VendorApplicationForm({ user, existingPayment }: { user: any, existingPayment: any }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
-  // Database categories
-  const [dbCategories, setDbCategories] = useState<any[]>([]);
+  const [dbCategories, setDbCategories] = useState<string[]>(FALLBACK_CATEGORIES);
 
-  // Form State
   const [form, setForm] = useState({
     businessName: '',
     whatsapp: '',
@@ -27,7 +31,6 @@ export function VendorApplicationForm({ user, existingPayment }: { user: any, ex
     reference: ''
   });
 
-  // File Uploads
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -37,7 +40,9 @@ export function VendorApplicationForm({ user, existingPayment }: { user: any, ex
     async function fetchCategories() {
       const supabase = createBrowserSupabase();
       const { data } = await supabase.from('categories').select('name').eq('active', true);
-      if (data) setDbCategories(data.map(c => c.name));
+      if (data && data.length > 0) {
+        setDbCategories(data.map(c => c.name));
+      }
     }
     fetchCategories();
   }, []);
@@ -72,19 +77,18 @@ export function VendorApplicationForm({ user, existingPayment }: { user: any, ex
     e.preventDefault();
     if (!logoFile) return setErrorMsg('Please upload a business logo.');
     if (!proofFile) return setErrorMsg('Please upload proof of payment.');
+    if (form.categories.length === 0) return setErrorMsg('Please select at least one category.');
 
     setLoading(true);
     setErrorMsg('');
     const supabase = createBrowserSupabase();
 
     try {
-      // 1. Upload Images
       const logoUrl = await uploadToCloudinary(logoFile);
       const proofUrl = await uploadToCloudinary(proofFile);
 
       if (!logoUrl || !proofUrl) throw new Error('Image upload failed.');
 
-      // 2. Save Payment & Application Data
       const { error: paymentError } = await supabase.from('payments').insert({
         seller_id: user.id,
         amount: 5000,
@@ -103,7 +107,6 @@ export function VendorApplicationForm({ user, existingPayment }: { user: any, ex
 
       if (paymentError) throw new Error(paymentError.message);
 
-      // 3. Update User Status
       await supabase.from('users').update({ seller_status: 'pending' }).eq('id', user.id);
 
       setSuccess(true);

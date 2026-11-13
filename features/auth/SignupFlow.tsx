@@ -37,19 +37,30 @@ export function SignupFlow() {
 
   function updateData(fields: Partial<SignupData>) {
     setData((prev) => ({ ...prev, ...fields }));
+    // Clear the error as soon as they start typing again
+    if (error) setError(null);
   }
 
   function nextStep() {
+    setError(null);
     setStep((s) => s + 1);
   }
 
   function prevStep() {
+    setError(null);
     setStep((s) => s - 1);
   }
 
   function finalizeSignup() {
     setError(null);
     
+    // 1. PRE-VALIDATION: Catch short passwords before hitting the server
+    if (!data.password || data.password.length < 6) {
+      setError("Your password must be at least 6 characters long. Please update it below.");
+      setStep(2); // Jump them back to the password screen automatically
+      return;
+    }
+
     startTransition(async () => {
       const formData = new FormData();
       formData.append('email', data.email);
@@ -64,6 +75,12 @@ export function SignupFlow() {
 
       if (result?.error) {
         setError(result.error);
+        
+        // 2. SMART BOUNCE: If the server rejects password or email, send them back to Step 2
+        const errMsg = result.error.toLowerCase();
+        if (errMsg.includes('password') || errMsg.includes('email') || errMsg.includes('credential')) {
+          setStep(2); 
+        }
       }
     });
   }
@@ -91,7 +108,7 @@ export function SignupFlow() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
+        <div className="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20 font-medium">
           {error}
         </div>
       )}
