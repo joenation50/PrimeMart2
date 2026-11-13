@@ -19,7 +19,8 @@ export default function SellerSettingsPage() {
     business_name: '', 
     whatsapp: '',
     logo_url: '',
-    store_slug: ''
+    store_slug: '',
+    real_name: '' // <-- Added real_name to state
   });
 
   useEffect(() => {
@@ -29,13 +30,15 @@ export default function SellerSettingsPage() {
       if (!user) return;
 
       const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();
-      const { data: userData } = await supabase.from('users').select('phone, store_slug').eq('id', user.id).single();
+      // Fetch name from users table
+      const { data: userData } = await supabase.from('users').select('name, phone, store_slug').eq('id', user.id).single();
 
       setProfile({ 
         business_name: seller?.business_name || '', 
         whatsapp: userData?.phone || '',
         logo_url: seller?.logo_url || '',
-        store_slug: userData?.store_slug || ''
+        store_slug: userData?.store_slug || '',
+        real_name: seller?.real_name || userData?.name || '' // <-- Use existing real_name, or fallback to user account name
       });
       setLoading(false);
     }
@@ -85,9 +88,9 @@ export default function SellerSettingsPage() {
     const { data: existing } = await supabase.from('users').select('id').eq('store_slug', baseSlug).neq('id', user.id).maybeSingle();
     const finalSlug = existing ? `${baseSlug}-${Math.floor(Math.random() * 1000)}` : baseSlug;
 
-    // UPSERT: Creates the row if it doesn't exist, updates it if it does.
     const { error: profileError } = await supabase.from('seller_profiles').upsert({ 
       user_id: user.id,
+      real_name: profile.real_name, // <-- INCLUDE REAL NAME HERE
       business_name: profile.business_name,
       logo_url: profile.logo_url
     }, { onConflict: 'user_id' });

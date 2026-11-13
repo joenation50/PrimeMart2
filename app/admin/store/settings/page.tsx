@@ -13,6 +13,7 @@ export default function AdminStoreSettings() {
   const [errorMsg, setErrorMsg] = useState('');
   
   const [profile, setProfile] = useState({
+    real_name: 'PrimeMart Official', // <-- Added
     business_name: 'PrimeMart Official',
     bio: 'The official store of PrimeMart.',
     based_city: 'Lagos',
@@ -26,15 +27,17 @@ export default function AdminStoreSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();
+      const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();
+      const { data: userData } = await supabase.from('users').select('name').eq('id', user.id).maybeSingle();
       
-      if (data) {
+      if (seller) {
         setProfile({
-          business_name: data.business_name || '',
-          bio: data.bio || '',
-          based_city: data.based_city || '',
-          based_country: data.based_country || 'NG',
-          avatar_url: data.avatar_url || ''
+          real_name: seller.real_name || userData?.name || 'PrimeMart Official',
+          business_name: seller.business_name || '',
+          bio: seller.bio || '',
+          based_city: seller.based_city || '',
+          based_country: seller.based_country || 'NG',
+          avatar_url: seller.avatar_url || ''
         });
       }
       setLoading(false);
@@ -82,8 +85,10 @@ export default function AdminStoreSettings() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Upsert including the required real_name
     const { error } = await supabase.from('seller_profiles').upsert({
       user_id: user.id,
+      real_name: profile.real_name, // <-- Added here
       business_name: profile.business_name,
       bio: profile.bio,
       based_city: profile.based_city,
