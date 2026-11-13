@@ -21,21 +21,33 @@ export function ReportModal({ user, onClose }: { user: any, onClose: () => void 
 
     const supabase = createBrowserSupabase();
     
-    // Insert into the reports table
-    const { error: dbError } = await supabase.from('reports').insert({
-      reporter_id: user.id,
-      target_type: 'general', // Distinguishes this from listing reports
-      target_id: user.id, // Using user ID as a placeholder since target_id is required
-      reason: form.type,
-      details: form.details,
-      status: 'pending'
-    });
+    try {
+      // 1. Fetch the user's role so the database knows who is reporting
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-    if (dbError) {
-      setError(dbError.message);
-      setLoading(false);
-    } else {
+      const role = profile?.role || 'buyer';
+
+      // 2. Insert into the reports table with all required fields
+      const { error: dbError } = await supabase.from('reports').insert({
+        reporter_id: user.id,
+        reporter_role: role, // <-- Added this to fix the error
+        target_type: 'general', 
+        target_id: user.id, 
+        reason: form.type,
+        details: form.details,
+        status: 'pending'
+      });
+
+      if (dbError) throw new Error(dbError.message);
+      
       setSuccess(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit report. Please try again.');
+    } finally {
       setLoading(false);
     }
   }
