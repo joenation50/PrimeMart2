@@ -4,12 +4,15 @@ import { Inter } from 'next/font/google';
 import { baseMetadata } from '@/lib/seo';
 import { ThemeProvider } from '@/components/theme-provider';
 import { GlobalLayout } from '@/components/global-layout';
-import { PWAInstallBanner } from '@/components/pwa-install-banner'; // <-- Added Import
+import { PWAInstallBanner } from '@/components/pwa-install-banner';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
-export const metadata: Metadata = baseMetadata();
+export const metadata: Metadata = {
+  ...baseMetadata(),
+  manifest: '/manifest.json', // <-- THIS IS REQUIRED
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,9 +23,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </GlobalLayout>
           
-          {/* PWA Install Banner */}
           <PWAInstallBanner />
         </ThemeProvider>
+
+        {/* REQUIRED: Register Service Worker */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

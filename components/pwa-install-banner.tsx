@@ -6,12 +6,19 @@ import { Download, X } from 'lucide-react';
 export function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showBanner, setShowBanner] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Check if user dismissed it previously
+    // 1. Check if it's an iPhone/iPad
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isIosDevice);
+
+    // 2. Check if user dismissed it previously
     const isDismissed = localStorage.getItem('pwa_banner_dismissed');
     if (isDismissed) return;
 
+    // 3. Listen for Android/Desktop install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -19,6 +26,12 @@ export function PWAInstallBanner() {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // 4. Force show on iPhone (since beforeinstallprompt doesn't exist on iOS)
+    if (isIosDevice) {
+      setShowBanner(true);
+    }
+
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
@@ -48,13 +61,19 @@ export function PWAInstallBanner() {
         </div>
         <div>
           <p className="text-sm font-bold">Install PrimeMart</p>
-          <p className="text-xs opacity-80">Add to home screen for quick access.</p>
+          {isIOS ? (
+            <p className="text-xs opacity-80">Tap <b>Share</b> then <b>Add to Home Screen</b>.</p>
+          ) : (
+            <p className="text-xs opacity-80">Add to home screen for quick access.</p>
+          )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button onClick={handleInstallClick} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">
-          Install
-        </button>
+        {!isIOS && (
+          <button onClick={handleInstallClick} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">
+            Install
+          </button>
+        )}
         <button onClick={handleDismiss} className="rounded-lg p-1.5 hover:bg-background/20">
           <X className="h-4 w-4" />
         </button>
