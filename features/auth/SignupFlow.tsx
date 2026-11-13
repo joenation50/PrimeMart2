@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Step1Country } from './Step1Country';
 import { Step2Auth } from './Step2Auth';
 import { Step3Profile } from './Step3Profile';
 import { Step4Confirm } from './Step4Confirm';
 import { signupAction } from '@/actions/auth';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 
 export type SignupData = {
   country: string;
@@ -20,9 +21,11 @@ export type SignupData = {
 };
 
 export function SignupFlow() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [successRedirect, setSuccessRedirect] = useState<string | null>(null);
   
   const [data, setData] = useState<SignupData>({
     country: 'NG',
@@ -37,7 +40,6 @@ export function SignupFlow() {
 
   function updateData(fields: Partial<SignupData>) {
     setData((prev) => ({ ...prev, ...fields }));
-    // Clear the error as soon as they start typing again
     if (error) setError(null);
   }
 
@@ -54,10 +56,9 @@ export function SignupFlow() {
   function finalizeSignup() {
     setError(null);
     
-    // 1. PRE-VALIDATION: Catch short passwords before hitting the server
     if (!data.password || data.password.length < 6) {
       setError("Your password must be at least 6 characters long. Please update it below.");
-      setStep(2); // Jump them back to the password screen automatically
+      setStep(2);
       return;
     }
 
@@ -75,14 +76,32 @@ export function SignupFlow() {
 
       if (result?.error) {
         setError(result.error);
-        
-        // 2. SMART BOUNCE: If the server rejects password or email, send them back to Step 2
         const errMsg = result.error.toLowerCase();
         if (errMsg.includes('password') || errMsg.includes('email') || errMsg.includes('credential')) {
           setStep(2); 
         }
+      } else if (result?.requiresEmailConfirmation) {
+        // Redirect to the Check Email page
+        router.push(`/signup/check-email?email=${encodeURIComponent(result.email!)}`);
+      } else if (result?.redirectTo) {
+        // Show success state, then force a hard reload
+        setSuccessRedirect(result.redirectTo);
+        setTimeout(() => {
+          window.location.href = result.redirectTo;
+        }, 1000);
       }
     });
+  }
+
+  if (successRedirect) {
+    return (
+      <div className="flex h-[400px] w-full flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-300">
+        <CheckCircle2 className="h-16 w-16 text-green-500" />
+        <h2 className="text-2xl font-bold text-foreground">Account Created!</h2>
+        <p className="text-sm text-muted-foreground">Taking you to your dashboard...</p>
+        <Loader2 className="h-6 w-6 animate-spin text-primary mt-4" />
+      </div>
+    );
   }
 
   if (isPending) {
@@ -113,18 +132,10 @@ export function SignupFlow() {
         </div>
       )}
 
-      {step === 1 && (
-        <Step1Country data={data} updateData={updateData} onNext={nextStep} />
-      )}
-      {step === 2 && (
-        <Step2Auth data={data} updateData={updateData} onNext={nextStep} onBack={prevStep} />
-      )}
-      {step === 3 && (
-        <Step3Profile data={data} updateData={updateData} onNext={nextStep} onBack={prevStep} />
-      )}
-      {step === 4 && (
-        <Step4Confirm data={data} onBack={prevStep} onSubmit={finalizeSignup} />
-      )}
+      {step === 1 && <Step1Country data={data} updateData={updateData} onNext={nextStep} />}
+      {step === 2 && <Step2Auth data={data} updateData={updateData} onNext={nextStep} onBack={prevStep} />}
+      {step === 3 && <Step3Profile data={data} updateData={updateData} onNext={nextStep} onBack={prevStep} />}
+      {step === 4 && <Step4Confirm data={data} onBack={prevStep} onSubmit={finalizeSignup} />}
     </div>
   );
 }

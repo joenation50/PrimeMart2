@@ -1,4 +1,3 @@
-// app/auth/callback/route.ts
 import { createServerSupabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -6,7 +5,6 @@ import type { NextRequest } from 'next/server';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  // CHANGED: Default fallback is now /marketplace instead of /
   const next = requestUrl.searchParams.get('next') ?? '/marketplace';
   
   if (code) {

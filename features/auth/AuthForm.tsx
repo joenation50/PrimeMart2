@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const intent = searchParams.get('intent') || 'browse';
 
@@ -14,11 +15,18 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      setLoading(false);
+      return;
+    }
 
     const supabase = createBrowserSupabase();
     
@@ -30,9 +38,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         return;
       }
       
-      const { data: profile } = await supabase.from('users').select('role, seller_status').eq('id', data.user.id).single();
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role, seller_status')
+        .eq('id', data.user.id)
+        .single();
       
-      // UPDATED ROUTING LOGIC
       if (profile?.role === 'admin') {
         window.location.href = '/admin';
       } else if (profile?.role === 'seller') {
@@ -42,11 +53,18 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           window.location.href = '/seller';
         }
       } else {
-        window.location.href = '/marketplace'; // Changed from /buyer
+        window.location.href = '/marketplace';
       }
 
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
       if (error) {
         setError(error.message);
         setLoading(false);
@@ -71,13 +89,33 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           verification_level: 'none'
         }, { onConflict: 'id' });
 
+        if (!data.session) {
+          setSuccess(true);
+          setTimeout(() => {
+            router.push(`/signup/check-email?email=${encodeURIComponent(email)}`);
+          }, 1500);
+          return;
+        }
+
         if (isSelling) {
           window.location.href = '/seller/paywall';
           return;
         }
       }
-      window.location.href = '/marketplace'; // Changed from /buyer
+      
+      window.location.href = '/marketplace';
     }
+  }
+
+  if (success) {
+    return (
+      <div className="flex h-[400px] w-full flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-300">
+        <CheckCircle2 className="h-16 w-16 text-green-500" />
+        <h2 className="text-2xl font-bold text-foreground">Account Created!</h2>
+        <p className="text-sm text-muted-foreground">Redirecting to email verification...</p>
+        <Loader2 className="h-6 w-6 animate-spin text-primary mt-4" />
+      </div>
+    );
   }
 
   return (
@@ -92,7 +130,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
+        <div className="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20 font-medium">
           {error}
         </div>
       )}
@@ -111,7 +149,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         </div>
         
         <div>
-          <label className="mb-2 block text-sm font-medium text-foreground">Password</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-foreground">Password</label>
+            {mode === 'login' && (
+              <Link href="/forgot-password" className="text-xs font-semibold text-primary hover:underline">
+                Forgot password?
+              </Link>
+            )}
+          </div>
           <input
             type="password"
             required

@@ -10,9 +10,16 @@ import Image from 'next/image';
 const FALLBACK_CATEGORIES = [
   { id: '1', name: 'Fashion' },
   { id: '2', name: 'Electronics' },
-  { id: '3', name: 'Home' },
-  { id: '4', name: 'Services' },
-  { id: '5', name: 'Vehicles' },
+  { id: '3', name: 'Gadgets' },
+  { id: '4', name: 'Home' },
+  { id: '5', name: 'Services' },
+  { id: '6', name: 'Vehicles' },
+  { id: '7', name: 'Transport' },
+  { id: '8', name: 'Food' },
+  { id: '9', name: 'Beauty' },
+  { id: '10', name: 'Health' },
+  { id: '11', name: 'Tutorials' },
+  { id: '12', name: 'Others' },
 ];
 
 export default function AdminNewListingPage() {
@@ -36,7 +43,12 @@ export default function AdminNewListingPage() {
   useEffect(() => {
     async function fetchCategories() {
       const supabase = createBrowserSupabase();
-      const { data, error } = await supabase.from('categories').select('*').eq('active', true).order('sort_order');
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('active', true)
+        .order('name');
+        
       if (!error && data && data.length > 0) {
         setCategories(data);
       }
@@ -79,8 +91,7 @@ export default function AdminNewListingPage() {
     }
 
     try {
-      // --- NEW: ENSURE SELLER PROFILE EXISTS ---
-      // If the admin/seller doesn't have a profile yet, create one so the foreign key doesn't fail
+      // Ensure Admin has a profile
       const { data: existingProfile } = await supabase
         .from('seller_profiles')
         .select('user_id')
@@ -90,13 +101,12 @@ export default function AdminNewListingPage() {
       if (!existingProfile) {
         await supabase.from('seller_profiles').insert({
           user_id: user.id,
-          business_name: 'My Store',
+          business_name: 'PrimeMart Official',
           real_name: 'Admin',
           based_country: 'NG',
           based_city: 'Lagos'
         });
       }
-      // ------------------------------------------
 
       const uploadedUrls: string[] = [];
       for (const file of files) {
@@ -130,9 +140,7 @@ export default function AdminNewListingPage() {
         status: 'active'
       });
 
-      if (error) {
-        throw new Error(`Database Error: ${error.message}`);
-      }
+      if (error) throw new Error(`Database Error: ${error.message}`);
       
       router.push('/admin/store/listings');
 

@@ -1,20 +1,7 @@
 'use server';
 
 import { createServerSupabase, createAdminSupabase } from '@/lib/supabase';
-import { redirect } from 'next/navigation';
-
-export async function loginAction(formData: FormData) {
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
-
-  const supabase = await createServerSupabase();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) return { error: error.message };
-  
-  // Changed from /auth/redirect
-  redirect('/marketplace');
-}
+import { revalidatePath } from 'next/cache';
 
 export async function signupAction(formData: FormData) {
   const email = formData.get('email') as string;
@@ -23,8 +10,15 @@ export async function signupAction(formData: FormData) {
   const intent = formData.get('intent') as string;
 
   const supabase = await createServerSupabase();
+  
+  // We pass the callback URL so Supabase knows where to send them after they click the email link
   const { data, error } = await supabase.auth.signUp({ 
-    email, password, options: { data: { name } }
+    email, 
+    password, 
+    options: { 
+      data: { name },
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
+    }
   });
 
   if (error) return { error: error.message };
@@ -32,6 +26,7 @@ export async function signupAction(formData: FormData) {
   if (data.user) {
     const adminSupabase = createAdminSupabase();
     
+    // Create the user profile in the database
     await adminSupabase.from('users').upsert({
       id: data.user.id,
       name: name || email.split('@')[0],
@@ -61,9 +56,17 @@ export async function signupAction(formData: FormData) {
   // If Supabase didn't give a session, it means "Confirm Email" is ON.
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) {
-    return { error: "Please go to Supabase -> Authentication -> Providers -> Email and turn OFF 'Confirm email'." };
+    // Tell the frontend to show the "Check your email" page
+    return { 
+      ok: true, 
+      requiresEmailConfirmation: true, 
+      email: email 
+    };
   }
 
-  // Changed from /paywall and /auth/redirect
-  redirect(intent === 'sell' ? '/seller/paywall' : '/marketplace');
+  // If Confirm Email is OFF, they are logged in immediately
+  return { 
+    ok: true, 
+    redirectTo: intent === 'sell' ? '/seller/paywall' : '/marketplace' 
+  };
 }

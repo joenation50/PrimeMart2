@@ -7,12 +7,20 @@ import { Loader2, Upload, X, ArrowLeft, AlertCircle, Lock } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
+// UPDATED: Full list of 12 categories as fallback
 const FALLBACK_CATEGORIES = [
   { id: '1', name: 'Fashion' },
   { id: '2', name: 'Electronics' },
-  { id: '3', name: 'Home' },
-  { id: '4', name: 'Services' },
-  { id: '5', name: 'Vehicles' },
+  { id: '3', name: 'Gadgets' },
+  { id: '4', name: 'Home' },
+  { id: '5', name: 'Services' },
+  { id: '6', name: 'Vehicles' },
+  { id: '7', name: 'Transport' },
+  { id: '8', name: 'Food' },
+  { id: '9', name: 'Beauty' },
+  { id: '10', name: 'Health' },
+  { id: '11', name: 'Tutorials' },
+  { id: '12', name: 'Others' },
 ];
 
 export default function SellerNewListingPage() {
@@ -21,8 +29,6 @@ export default function SellerNewListingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  
-  // NEW: Limit state
   const [isAtLimit, setIsAtLimit] = useState(false);
 
   const [form, setForm] = useState({
@@ -42,7 +48,7 @@ export default function SellerNewListingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
 
-      // 1. Check Active Listings Count
+      // Check listing limit
       const { count } = await supabase
         .from('listings')
         .select('*', { count: 'exact', head: true })
@@ -55,8 +61,13 @@ export default function SellerNewListingPage() {
         return;
       }
 
-      // 2. Fetch Categories
-      const { data, error } = await supabase.from('categories').select('*').eq('active', true).order('sort_order');
+      // Fetch categories
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('active', true)
+        .order('name'); // Order alphabetically
+
       if (!error && data && data.length > 0) {
         setCategories(data);
       }
@@ -151,8 +162,7 @@ export default function SellerNewListingPage() {
       });
 
       if (error) {
-        // This will catch the database trigger error if they somehow bypassed the frontend check
-        throw new Error(error.message);
+        throw new Error(`Database Error: ${error.message}`);
       }
       
       router.push('/seller/listings');
@@ -167,7 +177,6 @@ export default function SellerNewListingPage() {
     return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  // BLOCK THE FORM IF THEY ARE AT THE LIMIT
   if (isAtLimit) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-20 text-center">
