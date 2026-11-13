@@ -26,16 +26,24 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
   if (!data) return null;
 
   const safeData = data as any;
-  const images = safeData.images || [];
 
-  // Helper to safely get the URL
-  const getImageUrl = (img: string) => {
-    if (!img || !img.startsWith('http')) return null;
-    return img;
+  // BULLETPROOF IMAGE PARSER
+  const getImages = () => {
+    const raw = safeData.images;
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw.filter((img: string) => typeof img === 'string' && img.startsWith('http'));
+    }
+    if (typeof raw === 'string' && raw.startsWith('http')) {
+      return [raw];
+    }
+    return [];
   };
 
-  const primaryImage = images.length > 0 ? getImageUrl(images[activeImage]) : null;
+  const images = getImages();
+  const primaryImage = images.length > 0 ? images[activeImage] : null;
 
+  // Reset error when switching images
   useEffect(() => {
     setImgError(false);
   }, [activeImage]);
@@ -71,10 +79,12 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
           <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm">
             {primaryImage && !imgError ? (
               <Image
+                key={primaryImage} // Forces a fresh render when changing images
                 src={primaryImage}
                 alt={safeData.title}
                 fill
                 priority
+                sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover"
                 onError={() => setImgError(true)}
               />
@@ -86,25 +96,21 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             )}
           </div>
           
+          {/* THUMBNAILS */}
           {images.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">
-              {images.map((img: string, i: number) => {
-                const thumbUrl = getImageUrl(img);
-                if (!thumbUrl) return null;
-                
-                return (
-                  <button 
-                    key={i} 
-                    onClick={() => setActiveImage(i)} 
-                    className={cn(
-                      "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all bg-secondary", 
-                      activeImage === i ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
-                    )}
-                  >
-                    <Image src={thumbUrl} alt={`View ${i+1}`} fill className="object-cover" />
-                  </button>
-                );
-              })}
+              {images.map((img, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => setActiveImage(i)} 
+                  className={cn(
+                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all bg-secondary", 
+                    activeImage === i ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
+                  )}
+                >
+                  <Image src={img} alt={`View ${i+1}`} fill sizes="80px" className="object-cover" />
+                </button>
+              ))}
             </div>
           )}
         </div>
