@@ -20,7 +20,7 @@ export default function VerifiedSellersPage() {
     async function fetchVerifiedSellers() {
       const supabase = createBrowserSupabase();
       
-      // Fetch only verified sellers
+      // Fetch verified sellers AND admins
       const { data, error } = await supabase
         .from('users')
         .select(`
@@ -28,7 +28,7 @@ export default function VerifiedSellersPage() {
           seller_profiles(business_name, logo_url, based_city, bio)
         `)
         .eq('verification_level', 'verified')
-        .eq('role', 'seller')
+        .in('role', ['seller', 'admin']) // <-- Includes Admin
         .order('created_at', { ascending: false });
 
       if (error) {

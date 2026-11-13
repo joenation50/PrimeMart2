@@ -6,13 +6,13 @@ import { ListingCard, ListingGrid, SkeletonGrid } from '@/features/marketplace/g
 import { 
   Search, Bell, Settings, ShoppingCart, AlertCircle, Package,
   Shirt, Smartphone, Home, Wrench, Car, Tag, CheckCircle2, Store,
-  Soup, Flower2, MoreHorizontal, Truck, HeartPulse, BookOpen, Laptop, ArrowRight
+  Soup, Flower2, Truck, HeartPulse, BookOpen, Laptop, ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
-// 12 Categories matching your database
+// Match database categories to icons
 const getCategoryStyle = (name: string) => {
   const normalized = name.toLowerCase();
   if (normalized.includes('fashion')) return { icon: Shirt, color: 'text-[#f472b6]' };
@@ -60,6 +60,7 @@ function AutoScrollRow({ items }: { items: any[] }) {
 
 export default function MarketplacePage() {
   const [listings, setListings] = useState<any[]>([]);
+  const [searchedSellers, setSearchedSellers] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [verifiedSellers, setVerifiedSellers] = useState<any[]>([]);
@@ -69,7 +70,6 @@ export default function MarketplacePage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   
-  // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -80,7 +80,6 @@ export default function MarketplacePage() {
     async function fetchGlobalData() {
       const supabase = createBrowserSupabase();
       
-      // 1. Fetch User Profile
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
@@ -91,14 +90,13 @@ export default function MarketplacePage() {
         if (profile) setUserProfile(profile);
       }
 
-      // 2. Fetch Banners, Categories, and Verified Sellers
       const [bannerRes, catRes, sellerRes] = await Promise.all([
         supabase.from('banners').select('*').eq('active', true).order('created_at', { ascending: false }),
         supabase.from('categories').select('*').eq('active', true).order('sort_order'),
         supabase.from('users')
           .select(`id, name, store_slug, seller_code, verification_level, seller_profiles(business_name, logo_url, based_city)`)
           .eq('verification_level', 'verified')
-          .eq('role', 'seller')
+          .in('role', ['seller', 'admin'])
           .limit(6)
       ]);
       
@@ -109,15 +107,15 @@ export default function MarketplacePage() {
     fetchGlobalData();
   }, []);
 
-  // Fetch Listings with Search & Filters
+  // Fetch Listings & Sellers
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchListings();
+      performSearch();
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery, minPrice, maxPrice, activeCategory]);
 
-  async function fetchListings() {
+  async function performSearch() {
     setLoading(true);
     setErrorMsg('');
     const supabase = createBrowserSupabase();
@@ -126,6 +124,51 @@ export default function MarketplacePage() {
     setHasSearched(isSearching);
 
     try {
+      // ---------------------------------------------------------
+      // 1. SEARCH SELLERS (Bulletproof Logic)
+      // ---------------------------------------------------------
+      if (searchQuery.trim()) {
+        const term = `%${searchQuery.trim()}%`;
+
+        // Find sellers by store name
+        const { data: profiles } = await supabase
+          .from('seller_profiles')
+          .select('user_id')
+          .ilike('business_name', term);
+
+        // Find sellers by their personal name
+        const { data: users } = await supabase
+          .from('users')
+          .select('id')
+          .in('role', ['seller', 'admin'])
+          .ilike('name', term);
+
+        // Combine unique user IDs
+        const profileIds = profiles?.map(p => p.user_id) || [];
+        const userIds = users?.map(u => u.id) || [];
+        const allIds = [...new Set([...profileIds, ...userIds])];
+
+        // Fetch full details for these matching sellers
+        if (allIds.length > 0) {
+          const { data: sellersData } = await supabase
+            .from('users')
+            .select(`
+              id, name, store_slug, seller_code, verification_level,
+              seller_profiles(business_name, logo_url, based_city)
+            `)
+            .in('id', allIds);
+          
+          setSearchedSellers(sellersData || []);
+        } else {
+          setSearchedSellers([]);
+        }
+      } else {
+        setSearchedSellers([]);
+      }
+
+      // ---------------------------------------------------------
+      // 2. SEARCH LISTINGS
+      // ---------------------------------------------------------
       let query = supabase
         .from('listings')
         .select(`
@@ -139,8 +182,10 @@ export default function MarketplacePage() {
         const term = `%${searchQuery.trim()}%`;
         const { data: matchingSellers } = await supabase.from('seller_profiles').select('user_id').ilike('business_name', term);
         const sellerIds = matchingSellers?.map(s => s.user_id) || [];
+        
         let orCondition = `title.ilike.${term},category.ilike.${term}`;
         if (sellerIds.length > 0) orCondition += `,seller_id.in.(${sellerIds.join(',')})`;
+        
         query = query.or(orCondition);
       }
 
@@ -150,9 +195,10 @@ export default function MarketplacePage() {
 
       query = query.order('created_at', { ascending: false });
 
-      const { data, error } = await query;
-      if (error) throw new Error(error.message);
-      setListings(data || []);
+      const { data: listingsData, error: listingsError } = await query;
+      if (listingsError) throw new Error(listingsError.message);
+      setListings(listingsData || []);
+
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to fetch items.');
     } finally {
@@ -181,7 +227,7 @@ export default function MarketplacePage() {
 
   const recommended = listings.slice(0, 6);
 
-  const greetingName = userProfile?.role === 'seller' 
+  const greetingName = userProfile?.role === 'seller' || userProfile?.role === 'admin'
     ? (userProfile?.seller_profiles?.business_name || userProfile?.name || 'Seller')
     : (userProfile?.name || 'Shopper');
 
@@ -216,7 +262,7 @@ export default function MarketplacePage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
             <input 
               type="text" 
-              placeholder="Search items, brands..." 
+              placeholder="Search items, brands, or stores..." 
               value={searchQuery} 
               onChange={(e) => { setSearchQuery(e.target.value); setActiveCategory('All'); }} 
               className="w-full rounded-2xl border border-border bg-background pl-12 pr-4 py-4 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary" 
@@ -239,7 +285,7 @@ export default function MarketplacePage() {
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary" 
             />
             <button 
-              onClick={fetchListings}
+              onClick={performSearch}
               className="shrink-0 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               Filter
@@ -276,42 +322,89 @@ export default function MarketplacePage() {
         )}
 
         {hasSearched ? (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold text-foreground">
-                  {activeCategory !== 'All' ? `Best in ${activeCategory}` : 'Matched Items'}
-                </h2>
-              </div>
-              <button onClick={clearFilters} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
-                Clear Filters
-              </button>
-            </div>
-
-            {loading ? (
-              <SkeletonGrid count={4} />
-            ) : listings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border bg-card/50 py-16 px-6 text-center">
-                <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-background">
-                  <Search className="h-10 w-10 text-muted-foreground opacity-50" />
-                </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">No items found</h3>
-                <p className="text-sm text-muted-foreground max-w-[250px]">
-                  Try adjusting your price filters or checking your spelling.
-                </p>
-                <button onClick={clearFilters} className="mt-6 text-sm font-bold text-primary">
-                  Clear all filters
-                </button>
-              </div>
-            ) : (
-              <ListingGrid listings={listings} />
-            )}
-          </div>
-        ) : (
           <div className="space-y-8">
             
-            {/* ADMIN BANNERS */}
+            {/* 1. MATCHING SELLERS/STORES */}
+            {searchedSellers.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Store className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-bold text-foreground">Matching Stores</h2>
+                </div>
+                <div className="flex gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {searchedSellers.map((seller) => {
+                    const storeName = seller.seller_profiles?.business_name || seller.name || 'Verified Store';
+                    const storeLogo = seller.seller_profiles?.logo_url;
+                    const storeSlug = seller.store_slug || seller.seller_code;
+                    
+                    return (
+                      <Link 
+                        key={seller.id} 
+                        href={`/store/${storeSlug}`}
+                        className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-4 text-center shadow-sm transition-transform hover:-translate-y-1"
+                      >
+                        <div className="relative mb-3 h-16 w-16 overflow-hidden rounded-full bg-muted flex items-center justify-center border border-border">
+                          {storeLogo ? (
+                            <Image src={storeLogo} alt={storeName} fill className="object-cover" />
+                          ) : (
+                            <Store className="h-6 w-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-center gap-1 w-full mb-1">
+                          <h3 className="font-bold text-foreground text-[13px] truncate max-w-[90px]">
+                            {storeName}
+                          </h3>
+                          {seller.verification_level === 'verified' && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                        </div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase truncate w-full">
+                          {seller.seller_profiles?.based_city || 'Top Seller'}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 2. MATCHING PRODUCTS */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-bold text-foreground">
+                    {activeCategory !== 'All' ? `Best in ${activeCategory}` : 'Matching Products'}
+                  </h2>
+                </div>
+                <button onClick={clearFilters} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+                  Clear Filters
+                </button>
+              </div>
+
+              {loading ? (
+                <SkeletonGrid count={4} />
+              ) : listings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border bg-card/50 py-16 px-6 text-center">
+                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-background">
+                    <Search className="h-10 w-10 text-muted-foreground opacity-50" />
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">No products found</h3>
+                  <p className="text-sm text-muted-foreground max-w-[250px]">
+                    Try adjusting your price filters or checking your spelling.
+                  </p>
+                  <button onClick={clearFilters} className="mt-6 text-sm font-bold text-primary">
+                    Clear all filters
+                  </button>
+                </div>
+              ) : (
+                <ListingGrid listings={listings} />
+              )}
+            </div>
+          </div>
+        ) : (
+          /* HOMEPAGE VIEW */
+          <div className="space-y-8">
+            
+            {/* BANNERS */}
             {banners.length > 0 && (
               <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {banners.map((banner) => (
@@ -332,7 +425,7 @@ export default function MarketplacePage() {
               </div>
             )}
 
-            {/* CATEGORY GRID */}
+            {/* CATEGORIES */}
             {categories.length > 0 && (
               <div>
                 <h2 className="text-xl font-bold text-foreground mb-4">Categories</h2>
@@ -358,7 +451,7 @@ export default function MarketplacePage() {
               </div>
             )}
 
-            {/* VERIFIED SELLERS SECTION */}
+            {/* VERIFIED SELLERS */}
             {verifiedSellers.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-4">
