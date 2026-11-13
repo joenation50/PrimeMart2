@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { Users, Store, ShoppingBag, DollarSign, TrendingUp, Calendar } from 'lucide-react';
+import { Users, Store, ShoppingBag, DollarSign, Calendar } from 'lucide-react';
 import { formatDate, formatPrice } from '@/lib/format';
 
 export default function AdminAnalyticsPage() {
@@ -19,7 +19,9 @@ export default function AdminAnalyticsPage() {
       const { count: listingsCount } = await supabase.from('listings').select('*', { count: 'exact', head: true });
       
       const { data: payments } = await supabase.from('payments').select('amount').eq('status', 'approved');
-      const revenue = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+      
+      // FIXED: Using Number() to prevent string concatenation
+      const revenue = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
 
       const { data: recent } = await supabase.from('users').select('name, email, created_at').order('created_at', { ascending: false }).limit(5);
 

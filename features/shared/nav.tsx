@@ -8,11 +8,12 @@ import { useTheme } from 'next-themes';
 import { 
   Bell, User, LogOut, LayoutDashboard, Heart, Shield, 
   Sun, Moon, Home, Search, MoreHorizontal, 
-  ChevronRight, PlusCircle, Sparkles, BarChart, Settings
+  ChevronRight, PlusCircle, Sparkles, BarChart, Settings, Flag
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { cn } from '@/lib/utils';
 import { SITE_NAME } from '@/lib/constants';
+import { ReportModal } from '@/components/report-modal'; // <-- Imported
 
 export function Nav() {
   const pathname = usePathname();
@@ -20,6 +21,7 @@ export function Nav() {
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false); // <-- New State
   
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -120,6 +122,11 @@ export function Nav() {
 
             {session && (
               <>
+                {/* REPORT BUTTON (DESKTOP) */}
+                <button onClick={() => setShowReportModal(true)} className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Report an Issue">
+                  <Flag className="h-4 w-4" />
+                </button>
+
                 <Link href={isSeller ? "/seller/notifications" : "/buyer/notifications"} className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border hover:bg-secondary">
                   <Bell className="h-4 w-4" />
                 </Link>
@@ -152,12 +159,10 @@ export function Nav() {
         </div>
       </header>
 
-      {/* MOBILE DOCK - Solid background to prevent green bleed-through */}
+      {/* MOBILE DOCK */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe md:hidden">
-        <nav className="relative mx-auto flex max-w-md items-center justify-between overflow-hidden rounded-full border border-border/50 bg-background px-2 py-3 shadow-2xl">
-          
-          {/* Subtle Glow - kept inside the solid background */}
-          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
+        <nav className="relative mx-auto flex max-w-md items-center justify-between overflow-hidden rounded-full border border-border/50 bg-background px-2 py-3 shadow-2xl backdrop-blur-xl">
+          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 via-transparent to-primary/10" />
 
           <Link href="/marketplace" onClick={handleBrowseClick} className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname === '/marketplace' ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
             <Search className="h-6 w-6" />
@@ -274,6 +279,12 @@ export function Nav() {
                     </Link>
                   )}
 
+                  {/* REPORT BUTTON (MOBILE) */}
+                  <button onClick={() => { setMenuOpen(false); setShowReportModal(true); }} className="flex w-full items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary text-foreground">
+                    <div className="flex items-center gap-3"><Flag className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Report an Issue</span></div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+
                   <div className="my-2 h-px bg-border" />
 
                   {mounted && (
@@ -299,14 +310,18 @@ export function Nav() {
           </div>
         </div>
       )}
+
+      {/* RENDER REPORT MODAL */}
+      {showReportModal && session && (
+        <ReportModal user={session.user} onClose={() => setShowReportModal(false)} />
+      )}
     </>
   );
 }
 
 export function Footer() {
   return (
-    // Padding bottom pushes footer content above the mobile dock
-    <footer className="border-t border-border py-12 bg-background pb-32 md:pb-12">
+    <footer className="border-t border-border py-12 bg-background pb-32 md:pb-12 mt-auto">
       <div className="mx-auto max-w-7xl px-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
         <Link href="/" className="flex items-center">
           <Image src="/logo-black.png" alt={SITE_NAME} width={100} height={25} className="h-6 w-auto opacity-70 block dark:hidden" />
