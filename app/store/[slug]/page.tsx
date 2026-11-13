@@ -110,6 +110,15 @@ export default function PublicStorePage() {
     router.push(`/report?type=seller&id=${storeOwner.id}`);
   }
 
+  // SMART BACK BUTTON
+  function handleBack() {
+    if (window.history.length > 2) {
+      router.back();
+    } else {
+      router.push('/marketplace');
+    }
+  }
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -139,7 +148,7 @@ export default function PublicStorePage() {
       
       {/* CUSTOM HEADER */}
       <header className="sticky top-0 z-50 flex items-center justify-between bg-background/90 px-4 py-4 backdrop-blur-md border-b border-border/50">
-        <button onClick={() => router.back()} className="flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border text-foreground hover:bg-muted transition-colors shadow-sm">
+        <button onClick={handleBack} className="flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border text-foreground hover:bg-muted transition-colors shadow-sm">
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="text-lg font-bold text-foreground">Store Profile</h1>
@@ -245,6 +254,7 @@ export default function PublicStorePage() {
                   router.push(`/login?redirect=/store/${slug}`);
                   return;
                 }
+                // The Review Modal logic can be hooked up here
                 alert("Review modal will open here!");
               }} 
               className="rounded-full bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
