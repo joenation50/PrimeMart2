@@ -5,7 +5,7 @@ import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { ListingCard, ListingGrid, SkeletonGrid } from '@/features/marketplace/grid';
 import { 
   Search, Bell, Settings, ShoppingCart, AlertCircle, Package,
-  Shirt, Smartphone, Home, Wrench, Car, Tag
+  Shirt, Smartphone, Home, Wrench, Car, Tag, CheckCircle2, Store
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -55,6 +55,7 @@ export default function MarketplacePage() {
   const [listings, setListings] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [verifiedSellers, setVerifiedSellers] = useState<any[]>([]); // <-- New State
   
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -66,16 +67,26 @@ export default function MarketplacePage() {
   const [maxPrice, setMaxPrice] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  // Fetch Initial Data (Banners & Categories)
+  // Fetch Initial Data (Banners, Categories, Verified Sellers)
   useEffect(() => {
     async function fetchGlobalData() {
       const supabase = createBrowserSupabase();
-      const [bannerRes, catRes] = await Promise.all([
+      
+      const [bannerRes, catRes, sellerRes] = await Promise.all([
         supabase.from('banners').select('*').eq('active', true).order('created_at', { ascending: false }),
-        supabase.from('categories').select('*').eq('active', true).order('sort_order')
+        supabase.from('categories').select('*').eq('active', true).order('sort_order'),
+        // Fetch top verified sellers (ordered by rating)
+        supabase.from('users')
+          .select(`id, name, store_slug, seller_code, rating_avg, seller_profiles(business_name, logo_url, based_city)`)
+          .eq('verification_level', 'verified')
+          .eq('role', 'seller')
+          .order('rating_avg', { ascending: false })
+          .limit(6)
       ]);
+      
       if (bannerRes.data) setBanners(bannerRes.data);
       if (catRes.data) setCategories(catRes.data);
+      if (sellerRes.data) setVerifiedSellers(sellerRes.data);
     }
     fetchGlobalData();
   }, []);
@@ -93,7 +104,6 @@ export default function MarketplacePage() {
     setErrorMsg('');
     const supabase = createBrowserSupabase();
     
-    // If there's a search query or filters, we are in "Search Mode"
     const isSearching = searchQuery.trim() !== '' || minPrice !== '' || maxPrice !== '' || activeCategory !== 'All';
     setHasSearched(isSearching);
 
@@ -118,7 +128,6 @@ export default function MarketplacePage() {
 
       if (minPrice && !isNaN(Number(minPrice))) query = query.gte('price', Number(minPrice));
       if (maxPrice && !isNaN(Number(maxPrice))) query = query.lte('price', Number(maxPrice));
-
       if (activeCategory !== 'All') query = query.ilike('category', activeCategory);
 
       query = query.order('created_at', { ascending: false });
@@ -247,8 +256,6 @@ export default function MarketplacePage() {
             {loading ? (
               <SkeletonGrid count={4} />
             ) : listings.length === 0 ? (
-              
-              /* EXACT EMPTY STATE FROM SEARCH SCREENSHOT */
               <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border bg-card/50 py-16 px-6 text-center">
                 <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-background">
                   <Search className="h-10 w-10 text-muted-foreground opacity-50" />
@@ -264,14 +271,13 @@ export default function MarketplacePage() {
                   Clear all filters
                 </button>
               </div>
-              
             ) : (
               <ListingGrid listings={listings} />
             )}
           </div>
         ) : (
           
-          /* HOMEPAGE VIEW (Categories, Banners, Grouped Rows) */
+          /* HOMEPAGE VIEW (Categories, Banners, Verified Sellers, Grouped Rows) */
           <div className="space-y-8">
             
             {/* CATEGORY GRID */}
@@ -294,6 +300,53 @@ export default function MarketplacePage() {
                           {cat.name}
                         </span>
                       </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* NEW: VERIFIED SELLERS CATEGORY */}
+            {verifiedSellers.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-primary" /> Verified Sellers
+                  </h2>
+                  <Link href="/verified-sellers" className="text-sm font-semibold text-primary">
+                    See all
+                  </Link>
+                </div>
+                
+                <div className="flex gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {verifiedSellers.map((seller) => {
+                    const storeName = seller.seller_profiles?.business_name || seller.name || 'Verified Store';
+                    const storeLogo = seller.seller_profiles?.logo_url;
+                    const storeSlug = seller.store_slug || seller.seller_code;
+                    
+                    return (
+                      <Link 
+                        key={seller.id} 
+                        href={`/store/${storeSlug}`}
+                        className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-4 text-center shadow-sm transition-transform hover:-translate-y-1"
+                      >
+                        <div className="relative mb-3 h-16 w-16 overflow-hidden rounded-full bg-muted flex items-center justify-center">
+                          {storeLogo ? (
+                            <Image src={storeLogo} alt={storeName} fill className="object-cover" />
+                          ) : (
+                            <Store className="h-6 w-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-center gap-1 w-full mb-1">
+                          <h3 className="font-bold text-foreground text-[13px] truncate max-w-[90px]">
+                            {storeName}
+                          </h3>
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        </div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase truncate w-full">
+                          {seller.seller_profiles?.based_city || 'Top Seller'}
+                        </p>
+                      </Link>
                     );
                   })}
                 </div>

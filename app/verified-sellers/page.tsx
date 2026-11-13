@@ -1,68 +1,161 @@
-import { createServerSupabase } from '@/lib/supabase';
-import Link from 'next/link';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createBrowserSupabase } from '@/lib/supabase-browser';
+import { 
+  Search, ArrowLeft, CheckCircle2, Loader2, Store
+} from 'lucide-react';
 import Image from 'next/image';
-import { ShieldCheck, Star } from 'lucide-react';
+import Link from 'next/link';
 
-export const metadata = {
-  title: 'Verified Sellers · PrimeMart',
-};
+export default function VerifiedSellersPage() {
+  const router = useRouter();
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-export default async function VerifiedSellersPage() {
-  const supabase = await createServerSupabase();
+  useEffect(() => {
+    async function fetchVerifiedSellers() {
+      const supabase = createBrowserSupabase();
+      
+      // Fetch only verified sellers
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          id, name, store_slug, seller_code, verification_level,
+          seller_profiles(business_name, logo_url, based_city, bio)
+        `)
+        .eq('verification_level', 'verified')
+        .eq('role', 'seller')
+        .order('created_at', { ascending: false });
 
-  const { data: sellers } = await supabase
-    .from('users')
-    .select(`
-      id, rating_avg, rating_count, verification_level,
-      seller_profiles!inner(business_name, avatar_url, based_city, based_region)
-    `)
-    .eq('verification_level', 'verified')
-    .eq('seller_status', 'active')
-    .eq('account_status', 'active')
-    .order('rating_avg', { ascending: false });
+      if (error) {
+        setErrorMsg(error.message);
+      } else if (data) {
+        setSellers(data);
+      }
+      setLoading(false);
+    }
+    
+    fetchVerifiedSellers();
+  }, []);
+
+  // Filter sellers based on the search input
+  const filteredSellers = sellers.filter((seller) => {
+    const query = searchQuery.toLowerCase();
+    const businessName = (seller.seller_profiles?.business_name || seller.name || '').toLowerCase();
+    const city = (seller.seller_profiles?.based_city || '').toLowerCase();
+    const bio = (seller.seller_profiles?.bio || '').toLowerCase();
+    
+    return businessName.includes(query) || city.includes(query) || bio.includes(query);
+  });
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-16 min-h-screen">
-      <div className="mb-12 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-          <ShieldCheck className="h-8 w-8 text-primary" />
+    <div className="min-h-screen bg-background pb-32">
+      
+      {/* 1. GRADIENT HEADER */}
+      <div className="relative bg-gradient-to-br from-primary to-emerald-900 pt-12 pb-24 px-4 rounded-b-3xl">
+        <div className="flex items-center gap-4 mb-4">
+          <button 
+            onClick={() => router.back()} 
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md hover:bg-white/20 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-2xl font-bold text-white">Verified Sellers</h1>
         </div>
-        <h1 className="text-4xl font-bold tracking-tight">Verified Sellers</h1>
-        <p className="mt-2 text-muted-foreground">Trusted businesses across Nigeria.</p>
+        <p className="text-white/80 text-sm ml-14">
+          Shop safely from trusted PrimeMart entrepreneurs.
+        </p>
       </div>
 
-      {!sellers || sellers.length === 0 ? (
-        <div className="rounded-2xl border border-border py-16 text-center text-muted-foreground">
-          No verified sellers yet. Check back soon.
+      {/* 2. OVERLAPPING SEARCH BAR */}
+      <div className="px-4 -mt-8 relative z-10 mb-8">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
+          <input 
+            type="text" 
+            placeholder="Search brands, categories..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            className="w-full rounded-2xl border border-border bg-card pl-12 pr-4 py-4 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary shadow-lg" 
+          />
         </div>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {sellers.map((seller: any) => {
-            const profile = Array.isArray(seller.seller_profiles) ? seller.seller_profiles[0] : seller.seller_profiles;
-            return (
-              <Link key={seller.id} href={`/seller/${seller.id}`} className="glass-card group rounded-2xl p-6 text-center transition-all hover:border-primary/50 hover:-translate-y-1">
-                <div className="mx-auto mb-4 h-24 w-24 overflow-hidden rounded-full bg-secondary ring-4 ring-background">
-                  {profile?.avatar_url ? (
-                    <Image src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/w_200,h_200,c_fill,r_max,q_auto,f_auto/${profile.avatar_url}`} alt={profile.business_name} width={96} height={96} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-3xl font-bold">{profile?.business_name?.[0] || 'S'}</div>
-                  )}
-                </div>
-                <h3 className="flex items-center justify-center gap-1 font-semibold">
-                  {profile?.business_name}
-                  <ShieldCheck className="h-4 w-4 text-primary" />
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">{profile?.based_city}, {profile?.based_region}</p>
-                <div className="mt-3 flex items-center justify-center gap-1 text-sm">
-                  <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                  <span className="font-medium">{seller.rating_avg.toFixed(1)}</span>
-                  <span className="text-muted-foreground">({seller.rating_count})</span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      </div>
+
+      {/* 3. SELLERS GRID */}
+      <div className="px-4">
+        {errorMsg && (
+          <div className="mb-6 rounded-xl bg-red-500/10 p-4 text-sm text-red-500">
+            {errorMsg}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : filteredSellers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Store className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+            <h2 className="text-xl font-bold text-foreground mb-2">No verified sellers found</h2>
+            <p className="text-muted-foreground text-sm">
+              {searchQuery ? `No results for "${searchQuery}"` : 'Check back later for trusted vendors.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {filteredSellers.map((seller) => {
+              const profile = seller.seller_profiles;
+              const storeName = profile?.business_name || seller.name || 'Verified Store';
+              const storeLogo = profile?.logo_url;
+              const storeSlug = seller.store_slug || seller.seller_code;
+              
+              // Use city if available, otherwise fallback to a snippet of their bio
+              const subtitle = profile?.based_city || profile?.bio || 'Trusted Seller';
+
+              return (
+                <Link 
+                  key={seller.id} 
+                  href={`/store/${storeSlug}`}
+                  className="group flex flex-col items-center justify-center rounded-3xl bg-card border border-border p-6 text-center shadow-sm transition-all hover:bg-secondary/30 hover:-translate-y-1"
+                >
+                  {/* Logo */}
+                  <div className="relative mb-4 h-20 w-20 overflow-hidden rounded-full border-2 border-background bg-muted shadow-sm flex items-center justify-center">
+                    {storeLogo ? (
+                      <Image 
+                        src={storeLogo} 
+                        alt={storeName} 
+                        fill 
+                        className="object-cover" 
+                      />
+                    ) : (
+                      <span className="text-2xl font-bold text-primary">
+                        {storeName.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Name & Badge */}
+                  <div className="flex items-center justify-center gap-1.5 mb-1 w-full">
+                    <h3 className="font-bold text-foreground text-sm uppercase truncate max-w-[110px]">
+                      {storeName}
+                    </h3>
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary fill-primary/20" />
+                  </div>
+
+                  {/* Subtitle (City or Bio) */}
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase truncate w-full px-2">
+                    {subtitle}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
