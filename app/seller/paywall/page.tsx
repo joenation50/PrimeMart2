@@ -69,8 +69,7 @@ export default function SellerPaywallPage() {
         throw new Error('Failed to upload to Cloudinary. Check your connection.');
       }
 
-      // 2. Save payment record to Supabase 
-      // FIXED: Changed user_id to seller_id, and status to 'pending_review'
+      // 2. Save payment record to Supabase
       const { error: paymentError } = await supabase.from('payments').insert({
         seller_id: user.id, 
         amount: 5000,
@@ -128,11 +127,11 @@ export default function SellerPaywallPage() {
         <h1 className="text-2xl font-bold text-foreground mb-2">Activate Your Store</h1>
         <p className="text-muted-foreground mb-6">Complete your payment to unlock selling features on PrimeMart.</p>
 
-        {/* Bank Details Box */}
+        {/* Bank Details Box - UPDATED TO MONIEPOINT */}
         <div className="bg-secondary/50 rounded-2xl p-4 mb-8 space-y-2 text-sm">
-          <p className="flex justify-between"><span className="text-muted-foreground">Bank:</span> <span className="font-semibold">Opay</span></p>
-          <p className="flex justify-between"><span className="text-muted-foreground">Account Name:</span> <span className="font-semibold">PrimeMart</span></p>
-          <p className="flex justify-between"><span className="text-muted-foreground">Account Number:</span> <span className="font-semibold font-mono text-lg text-primary">8012345678</span></p>
+          <p className="flex justify-between"><span className="text-muted-foreground">Bank:</span> <span className="font-semibold">Moniepoint</span></p>
+          <p className="flex justify-between"><span className="text-muted-foreground">Account Name:</span> <span className="font-semibold">Nwankwo Uzo Joseph</span></p>
+          <p className="flex justify-between"><span className="text-muted-foreground">Account Number:</span> <span className="font-semibold font-mono text-lg text-primary">08075771583</span></p>
           <p className="flex justify-between"><span className="text-muted-foreground">Amount:</span> <span className="font-semibold">₦5,000</span></p>
         </div>
 
