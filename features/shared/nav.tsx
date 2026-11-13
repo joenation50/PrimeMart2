@@ -152,11 +152,12 @@ export function Nav() {
         </div>
       </header>
 
-      {/* MOBILE DOCK - REWRITTEN WITH PURE TAILWIND TO FIX GLOW BUG */}
+      {/* MOBILE DOCK - Solid background to prevent green bleed-through */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe md:hidden">
-        <nav className="relative mx-auto flex max-w-md items-center justify-between overflow-hidden rounded-full border border-border/50 bg-background/80 px-2 py-3 shadow-2xl backdrop-blur-xl">
-          {/* The Green Glow - safely contained by overflow-hidden */}
-          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 via-transparent to-primary/10" />
+        <nav className="relative mx-auto flex max-w-md items-center justify-between overflow-hidden rounded-full border border-border/50 bg-background px-2 py-3 shadow-2xl">
+          
+          {/* Subtle Glow - kept inside the solid background */}
+          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
 
           <Link href="/marketplace" onClick={handleBrowseClick} className={cn("relative flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-colors", pathname === '/marketplace' ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
             <Search className="h-6 w-6" />
@@ -304,6 +305,7 @@ export function Nav() {
 
 export function Footer() {
   return (
+    // Padding bottom pushes footer content above the mobile dock
     <footer className="border-t border-border py-12 bg-background pb-32 md:pb-12">
       <div className="mx-auto max-w-7xl px-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
         <Link href="/" className="flex items-center">

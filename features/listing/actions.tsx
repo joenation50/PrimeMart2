@@ -27,9 +27,7 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
   
   async function handleWhatsApp() {
     if (!isLoggedIn) {
-      // 1. Show the prompt you requested
       alert("Please join PrimeMart to view contact details and message this seller.");
-      // 2. Redirect them to login, using 'redirect' so they come back here after
       router.push(`/login?redirect=/listing/${listingId}`);
       return;
     }
@@ -61,7 +59,8 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
   }
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background p-4 pb-safe sm:static sm:border-none sm:bg-transparent sm:p-0">
+    // FIXED: Changed bottom-0 to bottom-[88px] to clear the mobile dock
+    <div className="fixed bottom-[88px] left-0 right-0 z-40 border-t border-border bg-background p-4 pb-safe sm:static sm:border-none sm:bg-transparent sm:p-0">
       <div className="container flex max-w-2xl items-center gap-3 sm:mx-0 sm:max-w-none sm:px-0">
         <button
           onClick={handleWhatsApp}
@@ -72,11 +71,11 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
           {isLoggedIn ? 'Message on WhatsApp' : 'Sign in to contact'}
         </button>
         
-        <button onClick={handleFavorite} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border transition hover:bg-muted">
+        <button onClick={handleFavorite} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background transition hover:bg-muted">
           <Heart className={cn('h-5 w-5', favorited ? 'fill-red-500 text-red-500' : 'text-foreground')} />
         </button>
         
-        <button onClick={handleShare} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border transition hover:bg-muted">
+        <button onClick={handleShare} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background transition hover:bg-muted">
           <Share2 className="h-5 w-5" />
         </button>
       </div>

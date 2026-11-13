@@ -18,7 +18,7 @@ export default function AdminStoreSettings() {
     bio: 'The official store of PrimeMart.',
     based_city: 'Lagos',
     based_country: 'NG',
-    avatar_url: ''
+    logo_url: '' // <-- Changed to logo_url
   });
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function AdminStoreSettings() {
           bio: seller.bio || '',
           based_city: seller.based_city || 'Lagos',
           based_country: seller.based_country || 'NG',
-          avatar_url: seller.avatar_url || ''
+          logo_url: seller.logo_url || '' // <-- Load from logo_url
         });
       }
       setLoading(false);
@@ -64,7 +64,7 @@ export default function AdminStoreSettings() {
       
       const data = await res.json();
       if (data.secure_url) {
-        setProfile(prev => ({ ...prev, avatar_url: data.secure_url }));
+        setProfile(prev => ({ ...prev, logo_url: data.secure_url })); // <-- Save to logo_url state
       } else {
         setErrorMsg('Cloudinary Error: ' + (data.error?.message || 'Upload failed'));
       }
@@ -85,7 +85,6 @@ export default function AdminStoreSettings() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // HARDCODED based_country and based_city to prevent NULL errors
     const { error } = await supabase.from('seller_profiles').upsert({
       user_id: user.id,
       real_name: profile.real_name || 'PrimeMart Official',
@@ -93,7 +92,7 @@ export default function AdminStoreSettings() {
       bio: profile.bio,
       based_city: 'Lagos',
       based_country: 'NG',
-      avatar_url: profile.avatar_url
+      logo_url: profile.logo_url // <-- Save to logo_url column
     }, { onConflict: 'user_id' });
 
     if (error) {
@@ -133,8 +132,8 @@ export default function AdminStoreSettings() {
         
         <div className="flex items-center gap-6">
           <div className="relative h-24 w-24 overflow-hidden rounded-full bg-secondary flex items-center justify-center border border-border">
-            {profile.avatar_url ? (
-              <Image src={profile.avatar_url} alt="Avatar" fill className="object-cover" />
+            {profile.logo_url ? (
+              <Image src={profile.logo_url} alt="Logo" fill className="object-cover" />
             ) : (
               <Store className="h-8 w-8 text-muted-foreground" />
             )}

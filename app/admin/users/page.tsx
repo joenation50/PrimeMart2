@@ -28,7 +28,6 @@ export default function AdminUsersPage() {
     setLoading(true);
     const supabase = createBrowserSupabase();
     
-    // Fetch users, their seller profile, AND their listings (for the universal search)
     const { data, error } = await supabase
       .from('users')
       .select(`
@@ -48,7 +47,6 @@ export default function AdminUsersPage() {
   }
 
   // --- ACTIONS ---
-
   async function makeSeller(userId: string) {
     if (!confirm('Manually upgrade this user to an active seller for 1 year?')) return;
     setActionLoading(userId);
@@ -121,21 +119,17 @@ export default function AdminUsersPage() {
   }
 
   // --- UNIVERSAL SEARCH LOGIC ---
-  // Searches: Name, Email, Phone, User Code, Store Name, Product Title, Product Category
   const filteredUsers = users.filter((u) => {
     const q = searchQuery.toLowerCase();
     
-    // User Info
     const matchesUser = 
       (u.name || '').toLowerCase().includes(q) ||
       (u.email || '').toLowerCase().includes(q) ||
       (u.seller_code || '').toLowerCase().includes(q) ||
       (u.phone || '').includes(q);
       
-    // Store Info
     const matchesStore = (u.seller_profiles?.business_name || '').toLowerCase().includes(q);
     
-    // Listings Info (Search products or categories)
     const matchesListings = u.listings?.some((l: any) => 
       (l.title || '').toLowerCase().includes(q) || 
       (l.category || '').toLowerCase().includes(q)
@@ -154,7 +148,6 @@ export default function AdminUsersPage() {
           <p className="text-sm text-muted-foreground">Search by user, store, product, or category.</p>
         </div>
         
-        {/* UNIVERSAL SEARCH BAR */}
         <div className="relative w-full sm:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -174,7 +167,6 @@ export default function AdminUsersPage() {
         </div>
       )}
       
-      {/* USERS TABLE */}
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -189,7 +181,9 @@ export default function AdminUsersPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.map((u) => {
-                const avatar = u.seller_profiles?.logo_url || u.avatar_url;
+                // FIXED: Only look for logo_url from the seller_profiles table
+                const avatar = u.seller_profiles?.logo_url;
+                
                 return (
                   <tr key={u.id} className="hover:bg-secondary/20 cursor-pointer" onClick={() => setSelectedUser(u)}>
                     <td className="px-6 py-4 flex items-center gap-3">
@@ -242,19 +236,18 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* FULL USER PROFILE MODAL (RESTORED + NEW FEATURES) */}
+      {/* FULL USER PROFILE MODAL */}
       {selectedUser && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setSelectedUser(null)}>
           <div 
             className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-background border border-border p-6 md:p-8 glass-card animate-slide-up-menu"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
             <div className="flex justify-between items-start mb-6 border-b border-border pb-6">
               <div className="flex items-center gap-4">
                 <div className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary overflow-hidden border-2 border-primary/20">
-                  {selectedUser.seller_profiles?.logo_url || selectedUser.avatar_url ? (
-                    <Image src={selectedUser.seller_profiles?.logo_url || selectedUser.avatar_url} alt="Avatar" fill className="object-cover" />
+                  {selectedUser.seller_profiles?.logo_url ? (
+                    <Image src={selectedUser.seller_profiles.logo_url} alt="Avatar" fill className="object-cover" />
                   ) : (
                     selectedUser.name.charAt(0).toUpperCase()
                   )}
@@ -272,10 +265,7 @@ export default function AdminUsersPage() {
               </button>
             </div>
 
-            {/* Profile Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              
-              {/* Identity */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Identity</h3>
                 <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /> <span>ID: <span className="font-mono text-xs">{selectedUser.id}</span></span></div>
@@ -286,7 +276,6 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-3"><CreditCard className="h-4 w-4 text-muted-foreground" /> <span>Code: <span className="font-mono font-bold text-primary">{selectedUser.seller_code}</span></span></div>
               </div>
 
-              {/* Status & Permissions */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Status</h3>
                 <div className="flex items-center gap-3"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> <span className="capitalize">Account: {selectedUser.account_status || 'active'}</span></div>
@@ -303,7 +292,6 @@ export default function AdminUsersPage() {
                 )}
               </div>
 
-              {/* Stats */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Activity</h3>
                 <div className="flex items-center gap-3"><Star className="h-4 w-4 text-muted-foreground" /> <span>Rating: {selectedUser.rating_avg || 0} ({selectedUser.rating_count || 0} reviews)</span></div>
@@ -311,7 +299,6 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground" /> <span>Last Active: {formatDate(selectedUser.last_active_at)}</span></div>
               </div>
 
-              {/* Preferences */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Preferences</h3>
                 <pre className="text-xs bg-secondary/50 p-3 rounded-lg overflow-x-auto max-h-32">
@@ -320,18 +307,14 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="mt-8 pt-6 border-t border-border space-y-3">
-              
               <div className="flex flex-wrap gap-3">
-                {/* View Store */}
                 {selectedUser.role === 'seller' && (
                   <Link href={`/store/${selectedUser.store_slug || selectedUser.seller_code}`} target="_blank" className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-2">
                     <ExternalLink className="h-4 w-4" /> View Public Store
                   </Link>
                 )}
 
-                {/* Verification Toggle */}
                 <button onClick={() => toggleVerification(selectedUser.id, selectedUser.verification_level)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-2">
                   {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />} 
                   {selectedUser.verification_level === 'verified' ? 'Remove Verification' : 'Verify User'}
@@ -339,7 +322,6 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                {/* Upgrade / Demote */}
                 {selectedUser.role === 'buyer' ? (
                   <button onClick={() => makeSeller(selectedUser.id)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2">
                     {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />} Upgrade to Seller
@@ -350,7 +332,6 @@ export default function AdminUsersPage() {
                   </button>
                 )}
 
-                {/* Extend Subscription */}
                 {selectedUser.role === 'seller' && (
                   <button onClick={() => extendSubscription(selectedUser.id, selectedUser.seller_expires_at)} disabled={actionLoading === selectedUser.id} className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-2">
                     {actionLoading === selectedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} +1 Year Subscription
@@ -358,7 +339,6 @@ export default function AdminUsersPage() {
                 )}
               </div>
 
-              {/* Ban / Unban */}
               <button onClick={() => toggleBan(selectedUser.id, selectedUser.account_status)} disabled={actionLoading === selectedUser.id} className={`w-full rounded-xl py-3 text-sm font-semibold border flex items-center justify-center gap-2 ${
                 selectedUser.account_status === 'banned' ? 'border-green-500 text-green-500 hover:bg-green-500/10' : 'border-red-500 text-red-500 hover:bg-red-500/10'
               }`}>

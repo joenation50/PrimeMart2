@@ -79,6 +79,25 @@ export default function AdminNewListingPage() {
     }
 
     try {
+      // --- NEW: ENSURE SELLER PROFILE EXISTS ---
+      // If the admin/seller doesn't have a profile yet, create one so the foreign key doesn't fail
+      const { data: existingProfile } = await supabase
+        .from('seller_profiles')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        await supabase.from('seller_profiles').insert({
+          user_id: user.id,
+          business_name: 'My Store',
+          real_name: 'Admin',
+          based_country: 'NG',
+          based_city: 'Lagos'
+        });
+      }
+      // ------------------------------------------
+
       const uploadedUrls: string[] = [];
       for (const file of files) {
         const formData = new FormData();
