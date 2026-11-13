@@ -21,11 +21,8 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
   const [favorited, setFavorited] = useState(isFavorited);
   const [loading, setLoading] = useState(false);
   
-  // 1. READY-MADE WHATSAPP MESSAGE
   const formattedPrice = currency === 'NGN' ? `₦${price.toLocaleString()}` : `$${price}`;
-  const prefill = encodeURIComponent(
-    `Hi, I saw your listing "${listingTitle}" (${formattedPrice}) on PrimeMart. Is it still available?`
-  );
+  const prefill = encodeURIComponent(`Hi, I saw your listing '${listingTitle}' (${formattedPrice}) on PrimeMart. Is it still available?`);
   const waLink = sellerPhone ? `https://wa.me/${sellerPhone.replace(/\D/g, '')}?text=${prefill}` : '#';
   
   async function handleWhatsApp() {
@@ -62,9 +59,9 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
   }
   
   return (
-    // 2. FIXED POSITIONING: Pushed up to bottom-24 and z-index set to 50 to match nav
-    <div className="fixed bottom-24 left-0 right-0 z-50 border-t border-border bg-background p-4 sm:static sm:border-none sm:bg-transparent sm:p-0">
-      <div className="container flex max-w-2xl items-center gap-3 sm:mx-0 sm:max-w-none sm:px-0">
+    // CHANGED: Back to bottom-0 since the nav is hidden
+    <div className="fixed bottom-0 left-0 right-0 z-[60] bg-background/95 backdrop-blur-md border-t border-border p-4 pb-safe sm:static sm:border-none sm:bg-transparent sm:p-0">
+      <div className="container mx-auto flex max-w-2xl items-center gap-3 sm:mx-0 sm:max-w-none sm:px-0">
         <button
           onClick={handleWhatsApp}
           disabled={loading}
