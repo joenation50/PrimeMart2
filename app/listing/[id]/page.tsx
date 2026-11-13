@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { Loader2, MessageCircle, ShieldCheck, MapPin, ArrowLeft, Heart, Share2, Flag, Star } from 'lucide-react';
+import { Loader2, MessageCircle, ShieldCheck, MapPin, ArrowLeft, Heart, Share2, Flag, Star, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/format';
@@ -15,6 +15,7 @@ export default function PublicListingPage() {
   const router = useRouter();
   const [listing, setListing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [activeImage, setActiveImage] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -24,8 +25,6 @@ export default function PublicListingPage() {
       const supabase = createBrowserSupabase();
       
       const { data: { user } } = await supabase.auth.getUser();
-      
-      // AUTH GATE: If they aren't logged in, send them to login
       if (!user) {
         router.replace(`/login?redirect=/listing/${params.id}`);
         return;
@@ -33,18 +32,18 @@ export default function PublicListingPage() {
       
       setCurrentUser(user);
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('listings')
-        // Added logo_url to seller_profiles query
         .select(`*, users(name, phone, verification_level, rating_avg, rating_count), seller_profiles(business_name, based_city, logo_url)`)
         .eq('id', params.id)
-        .single();
+        .maybeSingle(); // Changed from .single() to .maybeSingle()
       
-      if (data) {
+      if (error) {
+        setErrorMsg("Database Error: " + error.message);
+      } else if (data) {
         setListing(data);
-        trackView(data.id); // Track the view since they are logged in
+        trackView(data.id);
 
-        // Check if favorited
         const { data: fav } = await supabase
           .from('favorites')
           .select('id')
@@ -59,11 +58,7 @@ export default function PublicListingPage() {
   }, [params.id, router]);
 
   async function handleFavorite() {
-    if (!currentUser) {
-      router.push(`/login?redirect=/listing/${params.id}`);
-      return;
-    }
-    // Optimistic UI update
+    if (!currentUser) return;
     setIsFavorited(!isFavorited);
     await toggleFavorite(listing.id);
   }
@@ -71,7 +66,6 @@ export default function PublicListingPage() {
   function handleWhatsAppClick(e: React.MouseEvent) {
     if (!currentUser) {
       e.preventDefault();
-      router.push(`/login?redirect=/listing/${params.id}`);
       return;
     }
     trackWhatsAppClick(listing.id);
@@ -79,45 +73,38 @@ export default function PublicListingPage() {
 
   async function handleShare() {
     const url = window.location.href;
-    const shareData = {
-      title: listing.title,
-      text: `Check out ${listing.title} on PrimeMart`,
-      url: url,
-    };
-    
+    const shareData = { title: listing.title, text: `Check out ${listing.title} on PrimeMart`, url };
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
+      if (navigator.share) await navigator.share(shareData);
+      else {
         await navigator.clipboard.writeText(url);
         alert('Link copied to clipboard!');
       }
-    } catch (err) {
-      console.error('Error sharing:', err);
-    }
-  }
-
-  function handleReport() {
-    router.push(`/report?type=listing&id=${listing.id}`);
+    } catch (err) {}
   }
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  
+  if (errorMsg) return (
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
+      <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+      <h1 className="text-xl font-bold text-foreground mb-2">Error</h1>
+      <p className="text-red-500 font-mono text-sm max-w-md">{errorMsg}</p>
+    </div>
+  );
+
   if (!listing) return <div className="text-center py-20 text-foreground">Listing not found.</div>;
 
   const sellerName = listing.seller_profiles?.business_name || listing.users?.name || 'Seller';
   const sellerLogo = listing.seller_profiles?.logo_url;
   const isVerified = listing.users?.verification_level === 'verified';
   
-  // SAFE WHATSAPP LINK
   const whatsappLink = listing.users?.phone 
     ? `https://wa.me/${listing.users.phone.replace(/\D/g, '')}?text=Hi, I saw your listing '${listing.title}' on PrimeMart. Is it still available?`
     : null;
   
-  // Since we now save full URLs to the database, we can use them directly.
   const images = listing.images || [];
-  const primaryImage = images.length > 0 
-    ? images[activeImage] 
-    : "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop";
+  const primaryImage = images.length > 0 ? images[activeImage] : "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop";
 
   return (
     <div className="min-h-screen bg-background pb-32 md:pb-8">
@@ -152,7 +139,6 @@ export default function PublicListingPage() {
             <h1 className="text-3xl font-bold text-foreground mb-2">{listing.title}</h1>
             <p className="text-3xl font-bold text-primary mb-6">{listing.price_negotiable ? 'Negotiable' : formatPrice(listing.price, listing.currency)}</p>
 
-            {/* SELLER BLOCK WITH LOGO */}
             <div className="glass-card rounded-2xl p-4 flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
                 <div className="relative h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-lg font-bold overflow-hidden shrink-0">
@@ -175,7 +161,6 @@ export default function PublicListingPage() {
 
             <div className="text-muted-foreground whitespace-pre-wrap mb-8">{listing.description}</div>
 
-            {/* DESKTOP ACTIONS */}
             <div className="hidden md:flex gap-2 mt-auto">
               {whatsappLink ? (
                 <a href={whatsappLink} onClick={handleWhatsAppClick} target="_blank" rel="noreferrer" className="flex flex-1 items-center justify-center gap-2 rounded-full bg-green-500 py-4 font-bold text-white hover:bg-green-600 shadow-lg">
@@ -186,12 +171,8 @@ export default function PublicListingPage() {
                   <MessageCircle className="h-5 w-5" /> Contact Unavailable
                 </div>
               )}
-              <button onClick={handleShare} className="p-4 rounded-full border border-border hover:bg-secondary" aria-label="Share listing">
-                <Share2 className="h-5 w-5" />
-              </button>
-              <button onClick={handleReport} className="p-4 rounded-full border border-border hover:bg-red-500/10 text-red-500" aria-label="Report listing">
-                <Flag className="h-5 w-5" />
-              </button>
+              <button onClick={handleShare} className="p-4 rounded-full border border-border hover:bg-secondary"><Share2 className="h-5 w-5" /></button>
+              <button className="p-4 rounded-full border border-border hover:bg-red-500/10 text-red-500"><Flag className="h-5 w-5" /></button>
             </div>
           </div>
         </div>
@@ -204,13 +185,9 @@ export default function PublicListingPage() {
             <MessageCircle className="h-5 w-5" /> WhatsApp
           </a>
         ) : (
-          <div className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-3 font-bold text-muted-foreground">
-            Contact Unavailable
-          </div>
+          <div className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-3 font-bold text-muted-foreground">Contact Unavailable</div>
         )}
-        <button onClick={handleShare} className="p-3 rounded-xl border border-border bg-background" aria-label="Share listing">
-          <Share2 className="h-5 w-5" />
-        </button>
+        <button onClick={handleShare} className="p-3 rounded-xl border border-border bg-background"><Share2 className="h-5 w-5" /></button>
       </div>
     </div>
   );
