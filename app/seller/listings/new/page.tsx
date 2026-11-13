@@ -79,7 +79,7 @@ export default function SellerNewListingPage() {
     }
 
     try {
-      // --- NEW: ENSURE SELLER PROFILE EXISTS ---
+      // 1. Ensure Seller Profile Exists
       const { data: existingProfile } = await supabase
         .from('seller_profiles')
         .select('user_id')
@@ -95,8 +95,8 @@ export default function SellerNewListingPage() {
           based_city: 'Lagos'
         });
       }
-      // ------------------------------------------
 
+      // 2. Upload Images & Filter out bad links
       const uploadedUrls: string[] = [];
       for (const file of files) {
         const formData = new FormData();
@@ -109,15 +109,17 @@ export default function SellerNewListingPage() {
         });
         
         const data = await res.json();
-        if (data.secure_url) {
+        // Strict check: Only save valid full URLs
+        if (data.secure_url && data.secure_url.startsWith('http')) {
           uploadedUrls.push(data.secure_url);
         }
       }
 
       if (uploadedUrls.length === 0) {
-        throw new Error('Cloudinary image upload failed. Please try again.');
+        throw new Error('Image upload failed. Please try again.');
       }
 
+      // 3. Save Listing
       const { error } = await supabase.from('listings').insert({
         seller_id: user.id,
         title: form.title,

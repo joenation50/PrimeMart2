@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { 
   MapPin, ShieldCheck, Star, Truck, AlertTriangle, 
-  Phone, Package, Store, ArrowLeft, Tag, Calendar, Box, Share2
+  Phone, Package, Store, ArrowLeft, Tag, Calendar, Box, Share2, Image as ImageIcon
 } from 'lucide-react';
 import { formatPrice, timeAgo, formatDate } from '@/lib/format';
 import type { FullListing, TeaserListing } from './types';
@@ -26,35 +26,45 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
   const safeData = data as any;
 
   // --- THE ULTIMATE URL PARSER ---
-  const parseImages = (): string[] => {
-    let raw = safeData.images;
-    if (!raw) return [];
-
-    // If it's a string (like a JSON stringified array), parse it
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed.filter((url: any) => typeof url === 'string' && url.startsWith('http'));
-        if (typeof parsed === 'string' && parsed.startsWith('http')) return [parsed];
-      } catch (e) {
-        if (raw.startsWith('http')) return [raw];
-      }
-      return [];
+  const getImageUrl = (rawUrl: any) => {
+    if (!rawUrl || typeof rawUrl !== 'string') return null;
+    
+    // Remove quotes, brackets, spaces
+    let cleanUrl = rawUrl.trim().replace(/["'\[\]]/g, '');
+    
+    // If it's already a full URL
+    if (cleanUrl.startsWith('http')) {
+      return cleanUrl;
     }
-
-    // If it's already an array
-    if (Array.isArray(raw)) {
-      return raw.filter((url: any) => typeof url === 'string' && url.startsWith('http'));
+    
+    // If it's just a filename (like from older uploads)
+    if (cleanUrl.length > 0) {
+      return `https://res.cloudinary.com/za4q8nqh/image/upload/w_1200,q_auto,f_auto/${cleanUrl}`;
     }
-
-    return [];
+    
+    return null;
   };
 
-  const images = parseImages();
+  let images: string[] = [];
+  try {
+    let raw = safeData.images;
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch(e) { raw = [raw]; }
+    }
+    if (Array.isArray(raw)) {
+      images = raw.map(getImageUrl).filter(Boolean) as string[];
+    } else if (typeof raw === 'string') {
+      const url = getImageUrl(raw);
+      if (url) images = [url];
+    }
+  } catch (e) {
+    images = [];
+  }
+
   const primaryImage = images.length > 0 ? images[activeImage] : null;
 
   const sellerName = full?.seller_profile?.business_name || teaser?.seller_name || 'Seller';
-  const sellerLogo = (full as any)?.seller_profile?.logo_url;
+  const sellerLogo = getImageUrl((full as any)?.seller_profile?.logo_url);
   const storeSlug = full?.seller?.store_slug || full?.seller?.seller_code || teaser?.seller_slug;
   const storeLink = storeSlug ? `/store/${storeSlug}` : null;
 
@@ -77,25 +87,20 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         <ArrowLeft className="h-4 w-4" /> Back to Marketplace
       </Link>
 
-      {/* DEBUG OUTPUT: If the image still doesn't load, this will show the exact URL on your screen */}
-      {!primaryImage && (
-        <div className="bg-red-500/10 text-red-500 p-4 rounded-xl mb-4 text-xs break-all">
-          <p className="font-bold">Debug Info:</p>
-          <p>Images data: {JSON.stringify(safeData.images)}</p>
-        </div>
-      )}
-
       <div className="grid gap-8 md:grid-cols-2">
         
         {/* LEFT COLUMN: IMAGES */}
         <div className="space-y-4">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm">
+          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm flex items-center justify-center">
             {primaryImage ? (
-              // STANDARD IMG TAG - BYPASSES ALL NEXT.JS BUGS
+              // Standard <img> tag bypasses all Next.js bugs
               <img
                 src={primaryImage}
                 alt={safeData.title}
                 className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop';
+                }}
               />
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground bg-muted/30">
@@ -111,13 +116,21 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
               {images.map((img, i) => (
                 <button 
                   key={i} 
+                  type="button"
                   onClick={() => setActiveImage(i)} 
                   className={cn(
-                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all bg-secondary", 
-                    activeImage === i ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
+                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 cursor-pointer transition-all bg-secondary", 
+                    activeImage === i ? "border-primary ring-2 ring-primary/20" : "border-border opacity-70 hover:opacity-100"
                   )}
                 >
-                  <img src={img} alt={`View ${i+1}`} className="w-full h-full object-cover" />
+                  <img 
+                    src={img} 
+                    alt={`View ${i+1}`} 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=100&auto=format&fit=crop';
+                    }}
+                  />
                 </button>
               ))}
             </div>
@@ -126,6 +139,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
 
         {/* RIGHT COLUMN: DETAILS */}
         <div className="flex flex-col">
+          
           <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
             {full?.category ? <span>{full.category.name}</span> : <span>General</span>}
             <span className="text-muted-foreground">·</span>
