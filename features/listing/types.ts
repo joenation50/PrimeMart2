@@ -3,7 +3,7 @@ import type { Listing, SellerProfile, Review } from '@/types';
 export interface FullListing extends Listing {
   seller: any; 
   seller_profile: SellerProfile;
-  category?: any; // <-- Changed this line
+  category?: any;
   reviews_preview?: Review[];
   is_favorited?: boolean;
 }
@@ -19,5 +19,6 @@ export interface TeaserListing {
   seller_name: string;
   seller_verified: boolean;
   seller_rating: number;
+  seller_slug: string | null; // <-- ADDED THIS LINE
   created_at: string;
 }
