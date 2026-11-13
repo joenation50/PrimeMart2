@@ -8,12 +8,12 @@ import { useTheme } from 'next-themes';
 import { 
   Bell, User, LogOut, LayoutDashboard, Heart, Shield, 
   Sun, Moon, Home, Search, MoreHorizontal, 
-  ChevronRight, PlusCircle, Sparkles, BarChart, Settings, Flag
+  ChevronRight, PlusCircle, Sparkles, BarChart, Settings, Star, Flag
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { cn } from '@/lib/utils';
 import { SITE_NAME } from '@/lib/constants';
-import { ReportModal } from '@/components/report-modal'; // <-- Imported
+import { ReportModal } from '@/components/report-modal';
 
 export function Nav() {
   const pathname = usePathname();
@@ -21,7 +21,7 @@ export function Nav() {
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false); // <-- New State
+  const [showReportModal, setShowReportModal] = useState(false);
   
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -122,7 +122,6 @@ export function Nav() {
 
             {session && (
               <>
-                {/* REPORT BUTTON (DESKTOP) */}
                 <button onClick={() => setShowReportModal(true)} className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Report an Issue">
                   <Flag className="h-4 w-4" />
                 </button>
@@ -265,6 +264,13 @@ export function Nav() {
                         <div className="flex items-center gap-3"><BarChart className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Analytics</span></div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </Link>
+                      
+                      {/* NEW: MY REVIEWS LINK ADDED HERE */}
+                      <Link href="/seller/reviews" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
+                        <div className="flex items-center gap-3"><Star className="h-5 w-5 text-muted-foreground" /><span className="font-medium">My Reviews</span></div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </Link>
+
                       <Link href="/seller/settings" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary">
                         <div className="flex items-center gap-3"><Settings className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Store Settings</span></div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -279,7 +285,6 @@ export function Nav() {
                     </Link>
                   )}
 
-                  {/* REPORT BUTTON (MOBILE) */}
                   <button onClick={() => { setMenuOpen(false); setShowReportModal(true); }} className="flex w-full items-center justify-between rounded-xl px-4 py-3 hover:bg-secondary text-foreground">
                     <div className="flex items-center gap-3"><Flag className="h-5 w-5 text-muted-foreground" /><span className="font-medium">Report an Issue</span></div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />

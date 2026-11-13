@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { 
   MapPin, ShieldCheck, Star, Truck, AlertTriangle, 
-  Phone, Package, Store, ArrowLeft, Tag, Calendar, Box, Share2, ImageOff
+  Phone, Package, Store, ArrowLeft, Tag, Calendar, Box, Share2, MessageSquare
 } from 'lucide-react';
 import { formatPrice, timeAgo, formatDate } from '@/lib/format';
 import type { FullListing, TeaserListing } from './types';
@@ -19,34 +20,17 @@ interface ListingDetailProps {
 
 export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) {
   const [activeImage, setActiveImage] = useState(0);
-  const [brokenThumbnails, setBrokenThumbnails] = useState<Record<number, boolean>>({});
-  
   const data = full || teaser;
   
   if (!data) return null;
 
   const safeData = data as any;
 
-  // --- THE ULTIMATE FORGIVING URL PARSER ---
   const getImageUrl = (rawUrl: any) => {
     if (!rawUrl || typeof rawUrl !== 'string') return null;
-    
-    // Remove quotes, brackets, spaces
     let cleanUrl = rawUrl.trim().replace(/["'\[\]]/g, '');
-    
-    // Reject literal strings
-    if (cleanUrl === 'undefined' || cleanUrl === 'null' || cleanUrl === '') return null;
-
-    // If it's already a full URL
-    if (cleanUrl.startsWith('http')) {
-      return cleanUrl;
-    }
-    
-    // If it's just a filename
-    if (cleanUrl.length > 0) {
-      return `https://res.cloudinary.com/za4q8nqh/image/upload/w_1200,q_auto,f_auto/${cleanUrl}`;
-    }
-    
+    if (cleanUrl.startsWith('http')) return cleanUrl;
+    if (cleanUrl.length > 0) return `https://res.cloudinary.com/za4q8nqh/image/upload/w_1200,q_auto,f_auto/${cleanUrl}`;
     return null;
   };
 
@@ -73,6 +57,9 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
   const storeSlug = full?.seller?.store_slug || full?.seller?.seller_code || teaser?.seller_slug;
   const storeLink = storeSlug ? `/store/${storeSlug}` : null;
 
+  // Get reviews from the full data passed by queries.ts
+  const reviews = full?.reviews_preview || [];
+
   async function handleShare() {
     const url = window.location.href;
     try {
@@ -96,7 +83,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         
         {/* LEFT COLUMN: IMAGES */}
         <div className="space-y-4">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm flex items-center justify-center">
+          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm">
             {primaryImage ? (
               <img
                 src={primaryImage}
@@ -114,42 +101,20 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             )}
           </div>
           
-          {/* THUMBNAILS */}
           {images.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">
-              {images.map((img, i) => {
-                // If this specific image failed to load previously, show a broken placeholder
-                if (brokenThumbnails[i]) {
-                  return (
-                    <div key={i} className="relative flex flex-col items-center justify-center h-20 w-20 shrink-0 rounded-xl border-2 border-red-500/20 bg-red-500/5 text-red-500/50">
-                      <ImageOff className="h-6 w-6 mb-1" />
-                      <span className="text-[9px] font-bold">Broken</span>
-                    </div>
-                  );
-                }
-
-                return (
-                  <button 
-                    key={i} 
-                    type="button"
-                    onClick={() => setActiveImage(i)} 
-                    className={cn(
-                      "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 cursor-pointer transition-all bg-secondary", 
-                      activeImage === i ? "border-primary ring-2 ring-primary/20" : "border-border opacity-70 hover:opacity-100"
-                    )}
-                  >
-                    <img 
-                      src={img} 
-                      alt={`View ${i+1}`} 
-                      className="w-full h-full object-cover" 
-                      onError={() => {
-                        // If this thumbnail fails to load, mark it as broken
-                        setBrokenThumbnails(prev => ({ ...prev, [i]: true }));
-                      }}
-                    />
-                  </button>
-                );
-              })}
+              {images.map((img, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => setActiveImage(i)} 
+                  className={cn(
+                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all bg-secondary", 
+                    activeImage === i ? "border-primary ring-2 ring-primary/20" : "border-border opacity-70 hover:opacity-100"
+                  )}
+                >
+                  <img src={img} alt={`View ${i+1}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -269,6 +234,29 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
               </div>
             )}
           </div>
+
+          {/* NEW: SELLER REVIEWS SECTION */}
+          {reviews.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" /> Seller Reviews
+              </h2>
+              <div className="space-y-3">
+                {reviews.map((review: any) => (
+                  <div key={review.id} className="rounded-xl border border-border p-4 bg-card">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-bold text-foreground">{review.buyer?.name || 'Anonymous Buyer'}</p>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                        <span className="text-xs font-semibold text-foreground">{review.rating}.0</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{review.comment}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-8 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 border border-amber-500/20">
             <p className="flex items-center gap-2 font-bold mb-1">

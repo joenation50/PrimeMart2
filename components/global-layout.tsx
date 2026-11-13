@@ -6,18 +6,15 @@ import { Nav, Footer } from '@/features/shared/nav';
 export function GlobalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
-  // 1. Hide nav for Admin routes
+  // Hide nav for admin, listing pages, and store profile pages
   const isAdminRoute = pathname?.startsWith('/admin');
-  
-  // 2. Hide nav for single Listing pages
   const isListingRoute = pathname?.startsWith('/listing/');
+  const isStoreRoute = pathname?.startsWith('/store/');
 
-  // If it's admin or a listing page, strip the Nav and Footer entirely
-  if (isAdminRoute || isListingRoute) {
+  if (isAdminRoute || isListingRoute || isStoreRoute) {
     return <>{children}</>;
   }
 
-  // Otherwise, show the normal layout
   return (
     <div className="flex min-h-screen flex-col">
       <Nav />

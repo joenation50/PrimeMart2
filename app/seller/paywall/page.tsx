@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Loader2 } from 'lucide-react';
-import { PaywallView } from '@/features/payments/PaywallView';
+import { VendorApplicationForm } from '@/features/payments/VendorApplicationForm';
 
 export default function SellerPaywallPage() {
   const router = useRouter();
@@ -18,7 +18,6 @@ export default function SellerPaywallPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.replace('/login'); return; }
 
-      // Check if they already submitted a payment
       const { data: payment } = await supabase
         .from('payments')
         .select('*')
@@ -38,8 +37,8 @@ export default function SellerPaywallPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-8 pb-24">
-      <PaywallView user={user} existingPayment={existingPayment} />
+    <div className="min-h-screen bg-background">
+      <VendorApplicationForm user={user} existingPayment={existingPayment} />
     </div>
   );
 }

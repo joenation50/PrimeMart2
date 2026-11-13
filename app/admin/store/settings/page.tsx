@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { Store, Loader2, CheckCircle2, UploadCloud, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 export default function AdminStoreSettings() {
   const [loading, setLoading] = useState(true);
@@ -12,21 +13,29 @@ export default function AdminStoreSettings() {
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
+
   const [profile, setProfile] = useState({
     real_name: 'PrimeMart Official',
     business_name: 'PrimeMart Official',
-    bio: 'The official store of PrimeMart.',
-    based_city: 'Lagos',
+    bio: '',
+    based_city: '',
     based_country: 'NG',
-    logo_url: '' // <-- Changed to logo_url
+    logo_url: '',
+    categories: [] as string[]
   });
 
   useEffect(() => {
-    async function loadProfile() {
+    async function loadData() {
       const supabase = createBrowserSupabase();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Fetch available categories
+      const { data: cats } = await supabase.from('categories').select('name').eq('active', true);
+      if (cats) setDbCategories(cats.map(c => c.name));
+
+      // Fetch admin profile
       const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();
       const { data: userData } = await supabase.from('users').select('name').eq('id', user.id).maybeSingle();
       
@@ -37,13 +46,23 @@ export default function AdminStoreSettings() {
           bio: seller.bio || '',
           based_city: seller.based_city || 'Lagos',
           based_country: seller.based_country || 'NG',
-          logo_url: seller.logo_url || '' // <-- Load from logo_url
+          logo_url: seller.logo_url || '',
+          categories: seller.categories || []
         });
       }
       setLoading(false);
     }
-    loadProfile();
+    loadData();
   }, []);
+
+  function toggleCategory(catName: string) {
+    setProfile(prev => {
+      const isSelected = prev.categories.includes(catName);
+      if (isSelected) return { ...prev, categories: prev.categories.filter(c => c !== catName) };
+      if (prev.categories.length >= 5) return prev; // max 5
+      return { ...prev, categories: [...prev.categories, catName] };
+    });
+  }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -64,7 +83,7 @@ export default function AdminStoreSettings() {
       
       const data = await res.json();
       if (data.secure_url) {
-        setProfile(prev => ({ ...prev, logo_url: data.secure_url })); // <-- Save to logo_url state
+        setProfile(prev => ({ ...prev, logo_url: data.secure_url }));
       } else {
         setErrorMsg('Cloudinary Error: ' + (data.error?.message || 'Upload failed'));
       }
@@ -87,12 +106,13 @@ export default function AdminStoreSettings() {
 
     const { error } = await supabase.from('seller_profiles').upsert({
       user_id: user.id,
-      real_name: profile.real_name || 'PrimeMart Official',
+      real_name: profile.real_name,
       business_name: profile.business_name,
       bio: profile.bio,
-      based_city: 'Lagos',
-      based_country: 'NG',
-      logo_url: profile.logo_url // <-- Save to logo_url column
+      based_city: profile.based_city,
+      based_country: profile.based_country,
+      logo_url: profile.logo_url,
+      categories: profile.categories
     }, { onConflict: 'user_id' });
 
     if (error) {
@@ -148,14 +168,39 @@ export default function AdminStoreSettings() {
           </div>
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">Business Name</label>
-          <input type="text" required value={profile.business_name} onChange={e => setProfile({...profile, business_name: e.target.value})} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-foreground">Business Name</label>
+            <input type="text" required value={profile.business_name} onChange={e => setProfile({...profile, business_name: e.target.value})} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-foreground">Location</label>
+            <input type="text" required value={profile.based_city} onChange={e => setProfile({...profile, based_city: e.target.value})} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary" placeholder="e.g. Lagos" />
+          </div>
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium">Bio</label>
-          <textarea rows={4} value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary resize-none" />
+          <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-foreground">Bio / Description</label>
+          <textarea rows={4} value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary resize-none" placeholder="Tell buyers about your official store..." />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-foreground">Categories (Max 5)</label>
+          <div className="flex flex-wrap gap-2">
+            {dbCategories.map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => toggleCategory(cat)}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors border",
+                  profile.categories.includes(cat) ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border hover:bg-secondary"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
 
         <button type="submit" disabled={saving || uploading} className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
