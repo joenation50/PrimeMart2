@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, ShieldCheck, Star, Truck, AlertTriangle, Phone, Package, Store, ArrowLeft } from 'lucide-react';
-import { formatPrice, timeAgo } from '@/lib/format';
+import { 
+  MapPin, ShieldCheck, Star, Truck, AlertTriangle, 
+  Phone, Package, Store, ArrowLeft, Tag, Calendar, Box, Share2
+} from 'lucide-react';
+import { formatPrice, timeAgo, formatDate } from '@/lib/format';
 import type { FullListing, TeaserListing } from './types';
 import { ListingActions } from './actions';
 
@@ -22,6 +25,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
 
   const safeData = data as any;
   
+  // Safe image loading
   const rawImage = safeData.images?.[0];
   const primaryImage = rawImage && rawImage.startsWith('http') 
     ? rawImage 
@@ -29,22 +33,46 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
 
   const sellerName = full?.seller_profile?.business_name || teaser?.seller_name || 'Seller';
   
+  // Bypass TypeScript for logo_url
+  const sellerLogo = (full as any)?.seller_profile?.logo_url;
+
   const storeSlug = full?.seller?.store_slug || full?.seller?.seller_code || teaser?.seller_slug;
   const storeLink = storeSlug ? `/store/${storeSlug}` : null;
+
+  // --- SHARE FUNCTION ---
+  async function handleShare() {
+    const url = window.location.href;
+    const shareData = {
+      title: safeData.title,
+      text: `Check out ${safeData.title} on PrimeMart!`,
+      url: url,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(url);
+        alert('Link copied to clipboard!');
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+    }
+  }
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 pb-28 sm:pb-12">
       
-      {/* NEW: BACK BUTTON */}
+      {/* BACK BUTTON */}
       <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
         <ArrowLeft className="h-4 w-4" /> Back to Marketplace
       </Link>
 
       <div className="grid gap-8 md:grid-cols-2">
         
-        {/* IMAGE SECTION */}
+        {/* LEFT COLUMN: IMAGE */}
         <div className="space-y-4">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-secondary border border-border">
+          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm">
             {!imgError ? (
               <Image
                 src={primaryImage}
@@ -55,73 +83,112 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
                 onError={() => setImgError(true)}
               />
             ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
-                <Package className="h-12 w-12 mb-2 opacity-50" />
-                <p className="text-sm">No Image Available</p>
+              <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground bg-muted/30">
+                <Package className="h-16 w-16 mb-4 opacity-30" />
+                <p className="text-sm font-medium">No Image Available</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* DETAILS SECTION */}
+        {/* RIGHT COLUMN: DETAILS */}
         <div className="flex flex-col">
-          <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-            {full?.category && <span>{full.category.name}</span>}
-            <span>·</span>
-            <span>Listed {timeAgo(safeData.created_at)}</span>
-          </div>
-
-          <h1 className="text-2xl font-bold sm:text-3xl">{safeData.title}</h1>
           
-          <div className="mt-2 flex items-end justify-between">
-            <p className="text-3xl font-bold text-primary">
-              {safeData.price_negotiable ? <span className="text-muted-foreground text-xl">Negotiable</span> : formatPrice(safeData.price, safeData.currency)}
+          {/* Header Info */}
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
+            {full?.category ? <span>{full.category.name}</span> : <span>General</span>}
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">Listed {timeAgo(safeData.created_at)}</span>
+          </div>
+
+          {/* TITLE AND SHARE BUTTON */}
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-3xl font-extrabold text-foreground leading-tight">{safeData.title}</h1>
+            <button 
+              onClick={handleShare}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background hover:bg-secondary transition-colors mt-1 shadow-sm"
+              title="Share this listing"
+            >
+              <Share2 className="h-4 w-4 text-foreground" />
+            </button>
+          </div>
+          
+          <div className="mt-3 flex items-end justify-between">
+            <p className="text-4xl font-black text-primary">
+              {safeData.price_negotiable ? (
+                <span className="text-xl text-muted-foreground font-semibold">Negotiable</span>
+              ) : (
+                formatPrice(safeData.price, safeData.currency)
+              )}
             </p>
-            {isLoggedIn && (
-              <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                <Package className="h-4 w-4" /> Qty: {safeData.quantity || 1}
-              </p>
-            )}
           </div>
 
-          <div className="mt-6 space-y-3 rounded-xl border border-border p-4 text-sm">
-            {safeData.location && (
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{safeData.location}</span>
+          {/* PRODUCT DETAILS GRID */}
+          <div className="mt-6 grid grid-cols-2 gap-4 rounded-2xl border border-border bg-secondary/30 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-background rounded-lg"><Tag className="h-4 w-4 text-primary" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Category</p>
+                <p className="text-sm font-semibold capitalize">{full?.category?.name || safeData.category || 'General'}</p>
               </div>
-            )}
-            {full?.seller_profile?.delivers_worldwide ? (
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-muted-foreground" />
-                <span>Delivers worldwide</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-background rounded-lg"><Box className="h-4 w-4 text-primary" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Quantity</p>
+                <p className="text-sm font-semibold">{isLoggedIn ? (safeData.quantity || 1) : 'Hidden'}</p>
               </div>
-            ) : full?.seller_profile?.delivers_to_countries && full.seller_profile.delivers_to_countries.length > 0 ? (
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-muted-foreground" />
-                <span>Delivers to {full.seller_profile.delivers_to_countries.join(', ')}</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-background rounded-lg"><MapPin className="h-4 w-4 text-primary" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Location</p>
+                <p className="text-sm font-semibold truncate max-w-[100px]">{safeData.location || 'Nigeria'}</p>
               </div>
-            ) : null}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-background rounded-lg"><Calendar className="h-4 w-4 text-primary" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Date Listed</p>
+                <p className="text-sm font-semibold">{formatDate(safeData.created_at)}</p>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-6 rounded-xl border border-border p-4">
+          {/* DELIVERY INFO */}
+          {(full?.seller_profile?.delivers_worldwide || (full?.seller_profile?.delivers_to_countries && full.seller_profile.delivers_to_countries.length > 0)) && (
+            <div className="mt-4 rounded-xl border border-border p-4 text-sm flex items-center gap-3">
+              <Truck className="h-5 w-5 text-primary" />
+              <span className="text-muted-foreground">
+                {full?.seller_profile?.delivers_worldwide 
+                  ? 'Delivers worldwide' 
+                  : `Delivers to ${full?.seller_profile?.delivers_to_countries?.join(', ')}`}
+              </span>
+            </div>
+          )}
+
+          {/* SELLER BLOCK */}
+          <div className="mt-4 rounded-2xl border border-border p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-lg font-semibold overflow-hidden">
-                  {full?.seller_profile?.logo_url ? (
-                     <Image src={full.seller_profile.logo_url} alt={sellerName} width={48} height={48} className="object-cover" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-lg font-semibold overflow-hidden shrink-0 border border-border">
+                  {sellerLogo ? (
+                     <Image src={sellerLogo} alt={sellerName} width={48} height={48} className="object-cover" />
                   ) : (
                     sellerName.charAt(0).toUpperCase()
                   )}
                 </div>
                 <div>
-                  <p className="flex items-center gap-1 font-medium">
+                  <p className="flex items-center gap-1 font-bold text-foreground">
                     {sellerName}
                     {(full?.seller?.verification_level === 'verified' || teaser?.seller_verified) && (
                       <ShieldCheck className="h-4 w-4 text-primary" />
                     )}
                   </p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                     <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
                     {full?.seller?.rating_avg?.toFixed(1) || teaser?.seller_rating?.toFixed(1) || '0.0'} 
                     ({full?.seller?.rating_count || 0} reviews)
@@ -130,41 +197,47 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
               </div>
 
               {storeLink && (
-                <Link href={storeLink} target="_blank" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary/80 transition-colors">
+                <Link href={storeLink} target="_blank" className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-secondary px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary/80 transition-colors">
                   <Store className="h-3.5 w-3.5" /> Visit Store
                 </Link>
               )}
             </div>
 
+            {/* Phone Number (Gated) */}
             {isLoggedIn && full?.seller?.phone && (
-              <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 text-sm font-medium">
+              <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 text-sm font-semibold">
                 <Phone className="h-4 w-4 text-primary" />
                 {full.seller.phone}
               </div>
             )}
           </div>
 
+          {/* DESCRIPTION */}
           <div className="mt-6">
-            <h2 className="text-lg font-semibold">Description</h2>
+            <h2 className="text-lg font-bold text-foreground mb-2">Description</h2>
             {full ? (
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                 {full.description || 'No description provided.'}
               </p>
             ) : (
-              <div className="mt-2 rounded-lg bg-muted/50 p-4 text-center">
-                <p className="text-sm text-muted-foreground">Sign in to view the full description and contact the seller.</p>
+              <div className="rounded-xl bg-muted/50 p-6 text-center border border-border">
+                <p className="text-sm font-medium text-muted-foreground mb-3">Sign in to view the full description and contact the seller.</p>
+                <Link href={`/login?redirect=/listing/${safeData.id}`} className="inline-flex rounded-full bg-primary px-6 py-2 text-sm font-bold text-primary-foreground">
+                  Sign In
+                </Link>
               </div>
             )}
           </div>
 
-          <div className="mt-8 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-            <p className="flex items-center gap-2 font-medium">
+          {/* SAFETY WARNING */}
+          <div className="mt-8 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 border border-amber-500/20">
+            <p className="flex items-center gap-2 font-bold mb-1">
               <AlertTriangle className="h-4 w-4" /> Safety Warning
             </p>
-            <p className="mt-1 opacity-90">Never pay before seeing the item. PrimeMart does not hold funds or mediate disputes.</p>
+            <p className="opacity-90 leading-relaxed">Never pay before seeing the item. PrimeMart does not hold funds or mediate disputes. Meet in a safe public place.</p>
           </div>
 
-          {/* Desktop Actions */}
+          {/* DESKTOP ACTIONS */}
           <div className="mt-6 hidden sm:block">
             <ListingActions
               listingId={safeData.id}
@@ -179,7 +252,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         </div>
       </div>
 
-      {/* Mobile Sticky Bottom Action */}
+      {/* MOBILE STICKY ACTIONS */}
       <div className="sm:hidden">
         <ListingActions
           listingId={safeData.id}
