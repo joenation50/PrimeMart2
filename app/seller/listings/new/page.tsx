@@ -79,6 +79,24 @@ export default function SellerNewListingPage() {
     }
 
     try {
+      // --- NEW: ENSURE SELLER PROFILE EXISTS ---
+      const { data: existingProfile } = await supabase
+        .from('seller_profiles')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        await supabase.from('seller_profiles').insert({
+          user_id: user.id,
+          business_name: 'My Store',
+          real_name: 'Seller',
+          based_country: 'NG',
+          based_city: 'Lagos'
+        });
+      }
+      // ------------------------------------------
+
       const uploadedUrls: string[] = [];
       for (const file of files) {
         const formData = new FormData();
@@ -107,7 +125,7 @@ export default function SellerNewListingPage() {
         category: form.category,
         description: form.description,
         price_negotiable: form.price_negotiable,
-        images: uploadedUrls, 
+        images: uploadedUrls,
         status: 'active'
       });
 

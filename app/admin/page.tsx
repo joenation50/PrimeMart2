@@ -21,7 +21,7 @@ export default function AdminDashboard() {
     setErrorMsg('');
     const supabase = createBrowserSupabase();
     
-    // Using the exact relationship we just created in SQL
+    // We are now ordering by created_at
     const { data, error } = await supabase
       .from('payments')
       .select(`
@@ -60,7 +60,6 @@ export default function AdminDashboard() {
     <div>
       <h1 className="mb-8 text-2xl font-bold text-foreground">Approval Queue</h1>
       
-      {/* SHOW ERRORS ON SCREEN IF DATABASE FAILS */}
       {errorMsg && (
         <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-500/10 p-4 text-red-500 border border-red-500/20">
           <AlertCircle className="h-5 w-5 shrink-0" />
@@ -106,7 +105,7 @@ export default function AdminDashboard() {
                   <div className="mt-4 space-y-1 text-sm">
                     <p><span className="text-muted-foreground">Amount:</span> <span className="font-semibold text-primary">₦{payment.amount?.toLocaleString()}</span></p>
                     <p><span className="text-muted-foreground">Reference:</span> {payment.reference}</p>
-                    <p><span className="text-muted-foreground">Date:</span> {new Date(payment.created_at).toLocaleDateString()}</p>
+                    <p><span className="text-muted-foreground">Date:</span> {new Date(payment.created_at || Date.now()).toLocaleDateString()}</p>
                   </div>
                 </div>
 
