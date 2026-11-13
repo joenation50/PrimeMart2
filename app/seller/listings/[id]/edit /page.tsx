@@ -127,7 +127,9 @@ export default function SellerEditListingPage() {
         images: finalImages,
       }).eq('id', params.id);
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(`Database Error: ${error.message}`);
+      }
       router.push('/seller/listings');
 
     } catch (err: any) {
@@ -180,26 +182,17 @@ export default function SellerEditListingPage() {
 
         <div>
           <label className="mb-2 block text-sm font-medium">Title</label>
-          <input 
-            type="text" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} 
-            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary" 
-          />
+          <input type="text" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="mb-2 block text-sm font-medium">Price (₦)</label>
-            <input 
-              type="number" required value={form.price} onChange={e => setForm({...form, price: e.target.value})} 
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary" 
-            />
+            <input type="number" required value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Category</label>
-            <select 
-              required value={form.category} onChange={e => setForm({...form, category: e.target.value})} 
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-            >
+            <select required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary">
               <option value="" disabled>Select category</option>
               {categories.map(c => (
                 <option key={c.id} value={c.name || c.slug || c.id}>{c.name}</option>
@@ -209,25 +202,16 @@ export default function SellerEditListingPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <input 
-            type="checkbox" id="negotiable" checked={form.price_negotiable} onChange={e => setForm({...form, price_negotiable: e.target.checked})} 
-            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-          />
+          <input type="checkbox" id="negotiable" checked={form.price_negotiable} onChange={e => setForm({...form, price_negotiable: e.target.checked})} className="h-4 w-4 rounded border-border text-primary focus:ring-primary" />
           <label htmlFor="negotiable" className="text-sm font-medium cursor-pointer">Price is negotiable</label>
         </div>
 
         <div>
           <label className="mb-2 block text-sm font-medium">Description</label>
-          <textarea 
-            required rows={4} value={form.description} onChange={e => setForm({...form, description: e.target.value})} 
-            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary resize-none" 
-          />
+          <textarea required rows={4} value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary resize-none" />
         </div>
 
-        <button 
-          type="submit" disabled={saving} 
-          className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 flex justify-center items-center gap-2"
-        >
+        <button type="submit" disabled={saving} className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 flex justify-center items-center gap-2">
           {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving Changes...</> : 'Update Listing'}
         </button>
       </form>

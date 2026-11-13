@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { Store, Loader2, CheckCircle2, UploadCloud } from 'lucide-react';
+import { Store, Loader2, CheckCircle2, UploadCloud, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AdminStoreSettings() {
@@ -10,6 +10,7 @@ export default function AdminStoreSettings() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   
   const [profile, setProfile] = useState({
     business_name: 'PrimeMart Official',
@@ -46,13 +47,13 @@ export default function AdminStoreSettings() {
     if (!file) return;
 
     setUploading(true);
+    setErrorMsg('');
     
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', 'primemart_preset');
 
     try {
-      // Direct upload to Cloudinary using your actual Cloud Name
       const res = await fetch(`https://api.cloudinary.com/v1_1/za4q8nqh/image/upload`, {
         method: 'POST',
         body: formData,
@@ -62,10 +63,10 @@ export default function AdminStoreSettings() {
       if (data.secure_url) {
         setProfile(prev => ({ ...prev, avatar_url: data.secure_url }));
       } else {
-        alert('Upload failed: ' + (data.error?.message || 'Unknown error'));
+        setErrorMsg('Cloudinary Error: ' + (data.error?.message || 'Upload failed'));
       }
     } catch (err) {
-      alert('Image upload failed. Check your connection.');
+      setErrorMsg('Image upload failed. Check your connection.');
     } finally {
       setUploading(false);
     }
@@ -75,11 +76,13 @@ export default function AdminStoreSettings() {
     e.preventDefault();
     setSaving(true);
     setSuccess(false);
+    setErrorMsg('');
+    
     const supabase = createBrowserSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.from('seller_profiles').upsert({
+    const { error } = await supabase.from('seller_profiles').upsert({
       user_id: user.id,
       business_name: profile.business_name,
       bio: profile.bio,
@@ -87,6 +90,12 @@ export default function AdminStoreSettings() {
       based_country: profile.based_country,
       avatar_url: profile.avatar_url
     }, { onConflict: 'user_id' });
+
+    if (error) {
+      setErrorMsg("Database Error: " + error.message);
+      setSaving(false);
+      return;
+    }
 
     setSaving(false);
     setSuccess(true);
@@ -109,13 +118,17 @@ export default function AdminStoreSettings() {
           <CheckCircle2 className="h-5 w-5" /> Store profile saved successfully!
         </div>
       )}
+      {errorMsg && (
+        <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-500/10 p-4 text-red-500">
+          <AlertCircle className="h-5 w-5" /> {errorMsg}
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="glass-card rounded-2xl p-6 md:p-8 space-y-6">
         
         <div className="flex items-center gap-6">
           <div className="relative h-24 w-24 overflow-hidden rounded-full bg-secondary flex items-center justify-center border border-border">
             {profile.avatar_url ? (
-              // Uses the full URL directly from Cloudinary
               <Image src={profile.avatar_url} alt="Avatar" fill className="object-cover" />
             ) : (
               <Store className="h-8 w-8 text-muted-foreground" />

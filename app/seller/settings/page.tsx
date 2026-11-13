@@ -28,7 +28,7 @@ export default function SellerSettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).single();
+      const { data: seller } = await supabase.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle();
       const { data: userData } = await supabase.from('users').select('phone, store_slug').eq('id', user.id).single();
 
       setProfile({ 
@@ -54,7 +54,6 @@ export default function SellerSettingsPage() {
     formData.append('upload_preset', 'primemart_preset'); 
 
     try {
-      // UPDATED CLOUD NAME HERE
       const res = await fetch(`https://api.cloudinary.com/v1_1/za4q8nqh/image/upload`, {
         method: 'POST',
         body: formData,
@@ -64,10 +63,10 @@ export default function SellerSettingsPage() {
       if (data.secure_url) {
         setProfile(prev => ({ ...prev, logo_url: data.secure_url }));
       } else {
-        setErrorMsg(data.error?.message || 'Upload failed. Check your Cloudinary settings.');
+        setErrorMsg('Cloudinary Error: ' + (data.error?.message || 'Upload failed'));
       }
     } catch (err) {
-      setErrorMsg('Failed to upload image. Check your connection.');
+      setErrorMsg('Failed to upload image to Cloudinary.');
     }
     setUploading(false);
   }
@@ -82,27 +81,19 @@ export default function SellerSettingsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const baseSlug = profile.business_name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id')
-      .eq('store_slug', baseSlug)
-      .neq('id', user.id)
-      .maybeSingle();
-
+    const baseSlug = profile.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const { data: existing } = await supabase.from('users').select('id').eq('store_slug', baseSlug).neq('id', user.id).maybeSingle();
     const finalSlug = existing ? `${baseSlug}-${Math.floor(Math.random() * 1000)}` : baseSlug;
 
-    const { error: profileError } = await supabase.from('seller_profiles').update({ 
+    // UPSERT: Creates the row if it doesn't exist, updates it if it does.
+    const { error: profileError } = await supabase.from('seller_profiles').upsert({ 
+      user_id: user.id,
       business_name: profile.business_name,
       logo_url: profile.logo_url
-    }).eq('user_id', user.id);
+    }, { onConflict: 'user_id' });
 
     if (profileError) {
-      setErrorMsg(profileError.message);
+      setErrorMsg("Database Error: " + profileError.message);
       setSaving(false);
       return;
     }
@@ -113,7 +104,7 @@ export default function SellerSettingsPage() {
     }).eq('id', user.id);
 
     if (userError) {
-      setErrorMsg(userError.message);
+      setErrorMsg("Database Error: " + userError.message);
       setSaving(false);
       return;
     }
