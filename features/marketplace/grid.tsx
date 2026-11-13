@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Heart, ShieldCheck } from 'lucide-react';
+import { Heart, ShieldCheck, Package } from 'lucide-react';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -21,14 +21,14 @@ export function ListingCard({
   const [favorited, setFavorited] = useState(isFavorited);
   const [imgError, setImgError] = useState(false);
   
-  // FIXED IMAGE LOGIC: We check if the URL already starts with 'http'
-  // If it does, we use it directly. If not, we fallback.
+  // Safely extract the first image from the text[] array
   const rawImage = listing.images?.[0];
+  
+  // Ensure it's a valid URL
   const primaryImage = rawImage && rawImage.startsWith('http') 
     ? rawImage 
-    : "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop";
+    : null;
 
-  // FIXED TYPO: Changed seller_profile to seller_profiles
   const sellerName = listing.seller_profiles?.business_name || listing.users?.name || 'Seller';
   const isVerified = listing.users?.verification_level === 'verified';
 
@@ -37,7 +37,7 @@ export function ListingCard({
       <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-secondary border border-border/50">
         
         {/* IMAGE OR FALLBACK */}
-        {!imgError ? (
+        {primaryImage && !imgError ? (
           <Image
             src={primaryImage}
             alt={listing.title}
@@ -47,13 +47,11 @@ export function ListingCard({
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-secondary text-muted-foreground text-xs font-medium">
-            No Image Available
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary text-muted-foreground">
+            <Package className="h-8 w-8 mb-2 opacity-50" />
+            <span className="text-xs font-medium">No Image</span>
           </div>
         )}
-
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
         {/* Favorite Button */}
         {showFavorite && (
@@ -64,17 +62,10 @@ export function ListingCard({
               setFavorited(!favorited);
               onToggleFavorite?.(listing.id);
             }}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full glass-card transition hover:scale-110"
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition hover:scale-110"
           >
-            <Heart className={cn('h-4 w-4 transition', favorited ? 'fill-primary text-primary' : 'text-foreground')} />
+            <Heart className={cn('h-4 w-4 transition', favorited ? 'fill-red-500 text-red-500' : 'text-foreground')} />
           </button>
-        )}
-        
-        {/* Featured Tag */}
-        {listing.featured_until && (
-          <span className="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-lg">
-            Featured
-          </span>
         )}
       </div>
 

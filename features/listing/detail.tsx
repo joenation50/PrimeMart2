@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
@@ -10,6 +10,7 @@ import {
 import { formatPrice, timeAgo, formatDate } from '@/lib/format';
 import type { FullListing, TeaserListing } from './types';
 import { ListingActions } from './actions';
+import { cn } from '@/lib/utils';
 
 interface ListingDetailProps {
   full: FullListing | null;
@@ -19,61 +20,56 @@ interface ListingDetailProps {
 
 export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) {
   const [imgError, setImgError] = useState(false);
+  const [activeImage, setActiveImage] = useState(0);
   const data = full || teaser;
   
   if (!data) return null;
 
   const safeData = data as any;
-  
-  // Safe image loading
-  const rawImage = safeData.images?.[0];
-  const primaryImage = rawImage && rawImage.startsWith('http') 
-    ? rawImage 
-    : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop';
+  const images = safeData.images || [];
+
+  // Helper to safely get the URL
+  const getImageUrl = (img: string) => {
+    if (!img || !img.startsWith('http')) return null;
+    return img;
+  };
+
+  const primaryImage = images.length > 0 ? getImageUrl(images[activeImage]) : null;
+
+  useEffect(() => {
+    setImgError(false);
+  }, [activeImage]);
 
   const sellerName = full?.seller_profile?.business_name || teaser?.seller_name || 'Seller';
-  
-  // Bypass TypeScript for logo_url
   const sellerLogo = (full as any)?.seller_profile?.logo_url;
-
   const storeSlug = full?.seller?.store_slug || full?.seller?.seller_code || teaser?.seller_slug;
   const storeLink = storeSlug ? `/store/${storeSlug}` : null;
 
-  // --- SHARE FUNCTION ---
   async function handleShare() {
     const url = window.location.href;
-    const shareData = {
-      title: safeData.title,
-      text: `Check out ${safeData.title} on PrimeMart!`,
-      url: url,
-    };
-
     try {
       if (navigator.share) {
-        await navigator.share(shareData);
+        await navigator.share({ title: safeData.title, url });
       } else {
         await navigator.clipboard.writeText(url);
         alert('Link copied to clipboard!');
       }
-    } catch (err) {
-      console.error('Error sharing:', err);
-    }
+    } catch (err) {}
   }
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 pb-28 sm:pb-12">
       
-      {/* BACK BUTTON */}
       <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
         <ArrowLeft className="h-4 w-4" /> Back to Marketplace
       </Link>
 
       <div className="grid gap-8 md:grid-cols-2">
         
-        {/* LEFT COLUMN: IMAGE */}
+        {/* LEFT COLUMN: IMAGES */}
         <div className="space-y-4">
           <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm">
-            {!imgError ? (
+            {primaryImage && !imgError ? (
               <Image
                 src={primaryImage}
                 alt={safeData.title}
@@ -89,25 +85,44 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
               </div>
             )}
           </div>
+          
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">
+              {images.map((img: string, i: number) => {
+                const thumbUrl = getImageUrl(img);
+                if (!thumbUrl) return null;
+                
+                return (
+                  <button 
+                    key={i} 
+                    onClick={() => setActiveImage(i)} 
+                    className={cn(
+                      "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all bg-secondary", 
+                      activeImage === i ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
+                    )}
+                  >
+                    <Image src={thumbUrl} alt={`View ${i+1}`} fill className="object-cover" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* RIGHT COLUMN: DETAILS */}
         <div className="flex flex-col">
           
-          {/* Header Info */}
           <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
             {full?.category ? <span>{full.category.name}</span> : <span>General</span>}
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">Listed {timeAgo(safeData.created_at)}</span>
           </div>
 
-          {/* TITLE AND SHARE BUTTON */}
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-3xl font-extrabold text-foreground leading-tight">{safeData.title}</h1>
             <button 
               onClick={handleShare}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background hover:bg-secondary transition-colors mt-1 shadow-sm"
-              title="Share this listing"
             >
               <Share2 className="h-4 w-4 text-foreground" />
             </button>
@@ -123,7 +138,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             </p>
           </div>
 
-          {/* PRODUCT DETAILS GRID */}
           <div className="mt-6 grid grid-cols-2 gap-4 rounded-2xl border border-border bg-secondary/30 p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-background rounded-lg"><Tag className="h-4 w-4 text-primary" /></div>
@@ -132,7 +146,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
                 <p className="text-sm font-semibold capitalize">{full?.category?.name || safeData.category || 'General'}</p>
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               <div className="p-2 bg-background rounded-lg"><Box className="h-4 w-4 text-primary" /></div>
               <div>
@@ -140,7 +153,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
                 <p className="text-sm font-semibold">{isLoggedIn ? (safeData.quantity || 1) : 'Hidden'}</p>
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               <div className="p-2 bg-background rounded-lg"><MapPin className="h-4 w-4 text-primary" /></div>
               <div>
@@ -148,7 +160,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
                 <p className="text-sm font-semibold truncate max-w-[100px]">{safeData.location || 'Nigeria'}</p>
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               <div className="p-2 bg-background rounded-lg"><Calendar className="h-4 w-4 text-primary" /></div>
               <div>
@@ -158,19 +169,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             </div>
           </div>
 
-          {/* DELIVERY INFO */}
-          {(full?.seller_profile?.delivers_worldwide || (full?.seller_profile?.delivers_to_countries && full.seller_profile.delivers_to_countries.length > 0)) && (
-            <div className="mt-4 rounded-xl border border-border p-4 text-sm flex items-center gap-3">
-              <Truck className="h-5 w-5 text-primary" />
-              <span className="text-muted-foreground">
-                {full?.seller_profile?.delivers_worldwide 
-                  ? 'Delivers worldwide' 
-                  : `Delivers to ${full?.seller_profile?.delivers_to_countries?.join(', ')}`}
-              </span>
-            </div>
-          )}
-
-          {/* SELLER BLOCK */}
           <div className="mt-4 rounded-2xl border border-border p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-3">
@@ -203,7 +201,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
               )}
             </div>
 
-            {/* Phone Number (Gated) */}
             {isLoggedIn && full?.seller?.phone && (
               <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 text-sm font-semibold">
                 <Phone className="h-4 w-4 text-primary" />
@@ -212,7 +209,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             )}
           </div>
 
-          {/* DESCRIPTION */}
           <div className="mt-6">
             <h2 className="text-lg font-bold text-foreground mb-2">Description</h2>
             {full ? (
@@ -229,7 +225,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             )}
           </div>
 
-          {/* SAFETY WARNING */}
           <div className="mt-8 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 border border-amber-500/20">
             <p className="flex items-center gap-2 font-bold mb-1">
               <AlertTriangle className="h-4 w-4" /> Safety Warning
@@ -237,7 +232,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             <p className="opacity-90 leading-relaxed">Never pay before seeing the item. PrimeMart does not hold funds or mediate disputes. Meet in a safe public place.</p>
           </div>
 
-          {/* DESKTOP ACTIONS */}
           <div className="mt-6 hidden sm:block">
             <ListingActions
               listingId={safeData.id}
@@ -252,7 +246,6 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         </div>
       </div>
 
-      {/* MOBILE STICKY ACTIONS */}
       <div className="sm:hidden">
         <ListingActions
           listingId={safeData.id}
