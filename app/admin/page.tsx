@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { Loader2, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, ExternalLink, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
-import { approvePayment, rejectPayment } from './actions'; // Import the actions
+import { approvePayment, rejectPayment } from './actions';
 
 export default function AdminDashboard() {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -17,31 +18,39 @@ export default function AdminDashboard() {
 
   async function fetchPayments() {
     setLoading(true);
+    setErrorMsg('');
     const supabase = createBrowserSupabase();
-    const { data } = await supabase
+    
+    // Using the exact relationship we just created in SQL
+    const { data, error } = await supabase
       .from('payments')
       .select(`
         *,
         user:seller_id(name, email, seller_code)
       `)
       .eq('status', 'pending_review')
-      .order('submitted_at', { ascending: true });
+      .order('created_at', { ascending: true });
 
-    setPayments(data || []);
+    if (error) {
+      console.error(error);
+      setErrorMsg("Database Error: " + error.message);
+    } else {
+      setPayments(data || []);
+    }
     setLoading(false);
   }
 
   async function handleApprove(paymentId: string, sellerId: string) {
     setActionLoading(paymentId);
     await approvePayment(paymentId, sellerId);
-    setPayments(prev => prev.filter(p => p.id !== paymentId)); // Remove from UI instantly
+    setPayments(prev => prev.filter(p => p.id !== paymentId));
     setActionLoading(null);
   }
 
   async function handleReject(paymentId: string, sellerId: string) {
     setActionLoading(paymentId);
     await rejectPayment(paymentId, sellerId);
-    setPayments(prev => prev.filter(p => p.id !== paymentId)); // Remove from UI instantly
+    setPayments(prev => prev.filter(p => p.id !== paymentId));
     setActionLoading(null);
   }
 
@@ -51,7 +60,15 @@ export default function AdminDashboard() {
     <div>
       <h1 className="mb-8 text-2xl font-bold text-foreground">Approval Queue</h1>
       
-      {payments.length === 0 ? (
+      {/* SHOW ERRORS ON SCREEN IF DATABASE FAILS */}
+      {errorMsg && (
+        <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-500/10 p-4 text-red-500 border border-red-500/20">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <p className="text-sm">{errorMsg}</p>
+        </div>
+      )}
+
+      {payments.length === 0 && !errorMsg ? (
         <div className="glass-card rounded-2xl p-12 text-center">
           <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground">All caught up!</h2>
@@ -89,11 +106,10 @@ export default function AdminDashboard() {
                   <div className="mt-4 space-y-1 text-sm">
                     <p><span className="text-muted-foreground">Amount:</span> <span className="font-semibold text-primary">₦{payment.amount?.toLocaleString()}</span></p>
                     <p><span className="text-muted-foreground">Reference:</span> {payment.reference}</p>
-                    <p><span className="text-muted-foreground">Date:</span> {new Date(payment.submitted_at || payment.created_at).toLocaleDateString()}</p>
+                    <p><span className="text-muted-foreground">Date:</span> {new Date(payment.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
 
-                {/* Buttons */}
                 <div className="mt-6 flex gap-3">
                   <button 
                     onClick={() => handleApprove(payment.id, payment.seller_id)}

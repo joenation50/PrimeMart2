@@ -21,8 +21,11 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
   const [favorited, setFavorited] = useState(isFavorited);
   const [loading, setLoading] = useState(false);
   
+  // 1. READY-MADE WHATSAPP MESSAGE
   const formattedPrice = currency === 'NGN' ? `₦${price.toLocaleString()}` : `$${price}`;
-  const prefill = encodeURIComponent(`Hi, I saw your listing '${listingTitle}' (${formattedPrice}) on PrimeMart. Is it still available?`);
+  const prefill = encodeURIComponent(
+    `Hi, I saw your listing "${listingTitle}" (${formattedPrice}) on PrimeMart. Is it still available?`
+  );
   const waLink = sellerPhone ? `https://wa.me/${sellerPhone.replace(/\D/g, '')}?text=${prefill}` : '#';
   
   async function handleWhatsApp() {
@@ -59,23 +62,23 @@ export function ListingActions({ listingId, sellerPhone, listingTitle, price, cu
   }
   
   return (
-    // FIXED: Changed bottom-0 to bottom-[88px] to clear the mobile dock
-    <div className="fixed bottom-[88px] left-0 right-0 z-40 border-t border-border bg-background p-4 pb-safe sm:static sm:border-none sm:bg-transparent sm:p-0">
+    // 2. FIXED POSITIONING: Pushed up to bottom-24 and z-index set to 50 to match nav
+    <div className="fixed bottom-24 left-0 right-0 z-50 border-t border-border bg-background p-4 sm:static sm:border-none sm:bg-transparent sm:p-0">
       <div className="container flex max-w-2xl items-center gap-3 sm:mx-0 sm:max-w-none sm:px-0">
         <button
           onClick={handleWhatsApp}
           disabled={loading}
-          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#25D366] py-3.5 text-sm font-semibold text-white transition hover:bg-[#20b858] disabled:opacity-70 sm:text-base"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#25D366] py-3.5 text-sm font-semibold text-white transition hover:bg-[#20b858] disabled:opacity-70 sm:text-base shadow-lg"
         >
           <MessageCircle className="h-5 w-5" />
           {isLoggedIn ? 'Message on WhatsApp' : 'Sign in to contact'}
         </button>
         
-        <button onClick={handleFavorite} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background transition hover:bg-muted">
+        <button onClick={handleFavorite} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background transition hover:bg-muted shadow-sm">
           <Heart className={cn('h-5 w-5', favorited ? 'fill-red-500 text-red-500' : 'text-foreground')} />
         </button>
         
-        <button onClick={handleShare} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background transition hover:bg-muted">
+        <button onClick={handleShare} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background transition hover:bg-muted shadow-sm">
           <Share2 className="h-5 w-5" />
         </button>
       </div>
