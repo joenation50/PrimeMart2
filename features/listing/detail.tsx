@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import { useState } from 'react';
 import Link from 'next/link';
 import { 
   MapPin, ShieldCheck, Star, Truck, AlertTriangle, 
@@ -19,7 +18,6 @@ interface ListingDetailProps {
 }
 
 export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) {
-  const [imgError, setImgError] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const data = full || teaser;
   
@@ -27,26 +25,21 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
 
   const safeData = data as any;
 
-  // BULLETPROOF IMAGE PARSER
-  const getImages = () => {
-    const raw = safeData.images;
-    if (!raw) return [];
+  // BULLETPROOF ARRAY PARSER: Handles strings, JSON strings, and arrays
+  let images: string[] = [];
+  try {
+    let raw = safeData.images;
+    if (typeof raw === 'string') {
+      raw = JSON.parse(raw); // Fixes cases where Supabase returns a stringified array
+    }
     if (Array.isArray(raw)) {
-      return raw.filter((img: string) => typeof img === 'string' && img.startsWith('http'));
+      images = raw.filter((img: any) => typeof img === 'string' && img.startsWith('http'));
     }
-    if (typeof raw === 'string' && raw.startsWith('http')) {
-      return [raw];
-    }
-    return [];
-  };
+  } catch (e) {
+    images = [];
+  }
 
-  const images = getImages();
   const primaryImage = images.length > 0 ? images[activeImage] : null;
-
-  // Reset error when switching images
-  useEffect(() => {
-    setImgError(false);
-  }, [activeImage]);
 
   const sellerName = full?.seller_profile?.business_name || teaser?.seller_name || 'Seller';
   const sellerLogo = (full as any)?.seller_profile?.logo_url;
@@ -68,6 +61,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 pb-28 sm:pb-12">
       
+      {/* BACK BUTTON */}
       <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
         <ArrowLeft className="h-4 w-4" /> Back to Marketplace
       </Link>
@@ -76,20 +70,17 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         
         {/* LEFT COLUMN: IMAGES */}
         <div className="space-y-4">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm">
-            {primaryImage && !imgError ? (
-              <Image
-                key={primaryImage} // Forces a fresh render when changing images
-                src={primaryImage}
-                alt={safeData.title}
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground bg-muted/30">
+          
+          {/* MAIN IMAGE CONTAINER */}
+          <div 
+            className="relative w-full aspect-[4/5] overflow-hidden rounded-3xl bg-secondary border border-border shadow-sm bg-cover bg-center bg-no-repeat"
+            style={{ 
+              backgroundImage: primaryImage ? `url('${primaryImage}')` : 'none',
+              backgroundColor: primaryImage ? 'transparent' : 'var(--secondary)'
+            }}
+          >
+            {!primaryImage && (
+              <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground bg-muted/30 absolute inset-0">
                 <Package className="h-16 w-16 mb-4 opacity-30" />
                 <p className="text-sm font-medium">No Image Available</p>
               </div>
@@ -104,11 +95,12 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
                   key={i} 
                   onClick={() => setActiveImage(i)} 
                   className={cn(
-                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all bg-secondary", 
+                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all bg-cover bg-center bg-no-repeat", 
                     activeImage === i ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
                   )}
+                  style={{ backgroundImage: `url('${img}')` }}
                 >
-                  <Image src={img} alt={`View ${i+1}`} fill sizes="80px" className="object-cover" />
+                  {/* The image is rendered via CSS background, no <img> tag needed */}
                 </button>
               ))}
             </div>
@@ -118,12 +110,14 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         {/* RIGHT COLUMN: DETAILS */}
         <div className="flex flex-col">
           
+          {/* Header Info */}
           <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
             {full?.category ? <span>{full.category.name}</span> : <span>General</span>}
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">Listed {timeAgo(safeData.created_at)}</span>
           </div>
 
+          {/* TITLE AND SHARE BUTTON */}
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-3xl font-extrabold text-foreground leading-tight">{safeData.title}</h1>
             <button 
@@ -144,6 +138,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             </p>
           </div>
 
+          {/* PRODUCT DETAILS GRID */}
           <div className="mt-6 grid grid-cols-2 gap-4 rounded-2xl border border-border bg-secondary/30 p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-background rounded-lg"><Tag className="h-4 w-4 text-primary" /></div>
@@ -175,12 +170,13 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             </div>
           </div>
 
+          {/* SELLER BLOCK */}
           <div className="mt-4 rounded-2xl border border-border p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-lg font-semibold overflow-hidden shrink-0 border border-border">
                   {sellerLogo ? (
-                     <Image src={sellerLogo} alt={sellerName} width={48} height={48} className="object-cover" />
+                     <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url('${sellerLogo}')` }} />
                   ) : (
                     sellerName.charAt(0).toUpperCase()
                   )}
@@ -207,6 +203,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
               )}
             </div>
 
+            {/* Phone Number (Gated) */}
             {isLoggedIn && full?.seller?.phone && (
               <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 text-sm font-semibold">
                 <Phone className="h-4 w-4 text-primary" />
@@ -215,6 +212,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             )}
           </div>
 
+          {/* DESCRIPTION */}
           <div className="mt-6">
             <h2 className="text-lg font-bold text-foreground mb-2">Description</h2>
             {full ? (
@@ -231,6 +229,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             )}
           </div>
 
+          {/* SAFETY WARNING */}
           <div className="mt-8 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 border border-amber-500/20">
             <p className="flex items-center gap-2 font-bold mb-1">
               <AlertTriangle className="h-4 w-4" /> Safety Warning
@@ -238,6 +237,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
             <p className="opacity-90 leading-relaxed">Never pay before seeing the item. PrimeMart does not hold funds or mediate disputes. Meet in a safe public place.</p>
           </div>
 
+          {/* DESKTOP ACTIONS */}
           <div className="mt-6 hidden sm:block">
             <ListingActions
               listingId={safeData.id}
@@ -252,6 +252,7 @@ export function ListingDetail({ full, teaser, isLoggedIn }: ListingDetailProps) 
         </div>
       </div>
 
+      {/* MOBILE STICKY ACTIONS */}
       <div className="sm:hidden">
         <ListingActions
           listingId={safeData.id}
