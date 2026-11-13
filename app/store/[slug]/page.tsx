@@ -32,7 +32,6 @@ export default function PublicStorePage() {
       setCurrentUser(user);
 
       try {
-        // 1. Fetch Store Owner
         const { data: owner, error: ownerError } = await supabase
           .from('users')
           .select(`
@@ -45,7 +44,6 @@ export default function PublicStorePage() {
         if (ownerError || !owner) throw new Error('Store not found');
         setStoreOwner(owner);
 
-        // 2. Fetch Store Listings
         const { data: storeListings } = await supabase
           .from('listings')
           .select('*')
@@ -55,7 +53,6 @@ export default function PublicStorePage() {
         
         setListings(storeListings || []);
 
-        // 3. Fetch Store Reviews
         const { data: storeReviews } = await supabase
           .from('reviews')
           .select(`*, buyer:buyer_id(name)`)
@@ -110,7 +107,6 @@ export default function PublicStorePage() {
     router.push(`/report?type=seller&id=${storeOwner.id}`);
   }
 
-  // SMART BACK BUTTON
   function handleBack() {
     if (window.history.length > 2) {
       router.back();
@@ -139,9 +135,32 @@ export default function PublicStorePage() {
   const storeName = storeOwner.seller_profiles?.business_name || storeOwner.name || 'Seller Store';
   const storeLogo = storeOwner.seller_profiles?.logo_url;
   const isVerified = storeOwner.verification_level === 'verified';
-  const category = storeOwner.seller_profiles?.categories?.[0] || 'General';
   const location = storeOwner.seller_profiles?.based_city || 'Nigeria';
   const bio = storeOwner.seller_profiles?.bio || 'Welcome to my store on PrimeMart.';
+  
+  // --- BULLETPROOF CATEGORIES PARSER ---
+  let rawCategories = storeOwner.seller_profiles?.categories;
+  let categories: string[] = [];
+
+  try {
+    if (Array.isArray(rawCategories)) {
+      categories = rawCategories;
+    } else if (typeof rawCategories === 'string') {
+      // If it's a JSON string like '["Fashion", "Gadgets"]'
+      if (rawCategories.startsWith('[')) {
+        categories = JSON.parse(rawCategories);
+      } else {
+        // If it's a comma-separated string like "Fashion, Gadgets"
+        categories = rawCategories.split(',').map((c: string) => c.trim());
+      }
+    }
+  } catch (e) {
+    categories = ['General'];
+  }
+
+  if (!categories || categories.length === 0) {
+    categories = ['General'];
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -159,7 +178,6 @@ export default function PublicStorePage() {
 
       {/* MODERN MESH GRADIENT BANNER */}
       <div className="relative">
-        {/* Glowing shapes for the modern background */}
         <div className="h-56 w-full overflow-hidden bg-gradient-to-b from-primary/10 to-transparent relative">
           <div className="absolute -top-20 -left-20 h-64 w-64 rounded-full bg-primary/20 blur-[80px]" />
           <div className="absolute top-0 right-0 h-48 w-48 rounded-full bg-emerald-500/20 blur-[60px]" />
@@ -200,11 +218,15 @@ export default function PublicStorePage() {
               {isVerified && <CheckCircle2 className="h-6 w-6 text-primary fill-primary/20" />}
             </h2>
 
-            {/* Category Chip */}
-            <div className="inline-block rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 mb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                {category}
-              </span>
+            {/* ALL CATEGORIES CHIPS */}
+            <div className="flex flex-wrap justify-center gap-2 mb-4">
+              {categories.map((cat: string, index: number) => (
+                <div key={index} className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                    {cat}
+                  </span>
+                </div>
+              ))}
             </div>
 
             {/* Location */}

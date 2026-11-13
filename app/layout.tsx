@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   ...baseMetadata(),
-  manifest: '/manifest.json', // <-- THIS IS REQUIRED
+  manifest: '/manifest.json', // <-- Must be here
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PWAInstallBanner />
         </ThemeProvider>
 
-        {/* REQUIRED: Register Service Worker */}
+        {/* Service Worker Script */}
         <script
           dangerouslySetInnerHTML={{
             __html: `

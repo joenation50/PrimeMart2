@@ -8,7 +8,8 @@ import { useTheme } from 'next-themes';
 import { 
   Bell, User, LogOut, LayoutDashboard, Heart, Shield, 
   Sun, Moon, Home, Search, MoreHorizontal, 
-  ChevronRight, PlusCircle, Sparkles, BarChart, Settings, Star, Flag
+  ChevronRight, PlusCircle, Sparkles, BarChart, Settings, Star, Flag,
+  Mail, Phone, MessageCircle, Facebook
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { cn } from '@/lib/utils';
@@ -82,7 +83,7 @@ export function Nav() {
 
   return (
     <>
-      {/* DESKTOP NAV - Solid background with backdrop blur to prevent text bleed */}
+      {/* DESKTOP NAV */}
       <header className="sticky top-0 z-50 w-full hidden md:block border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-8">
@@ -158,7 +159,7 @@ export function Nav() {
         </div>
       </header>
 
-      {/* MOBILE DOCK - Added transform-gpu and pb-safe to prevent scroll glitches */}
+      {/* MOBILE DOCK */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe transform-gpu md:hidden pointer-events-none">
         <nav className="pointer-events-auto relative mx-auto flex max-w-md items-center justify-between overflow-hidden rounded-full border border-border/50 bg-background px-2 py-3 shadow-2xl backdrop-blur-xl">
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/10 via-transparent to-primary/10" />
@@ -325,13 +326,100 @@ export function Nav() {
 
 export function Footer() {
   return (
-    <footer className="border-t border-border py-12 bg-background pb-32 md:pb-12 mt-auto">
-      <div className="mx-auto max-w-7xl px-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
-        <Link href="/" className="flex items-center">
-          <Image src="/logo-black.png" alt={SITE_NAME} width={100} height={25} className="h-6 w-auto opacity-70 block dark:hidden" />
-          <Image src="/logo-white.png" alt={SITE_NAME} width={100} height={25} className="h-6 w-auto opacity-70 hidden dark:block" />
-        </Link>
-        <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} {SITE_NAME}. Built by PrimeWeb Designs.</p>
+    <footer className="border-t border-border bg-background pb-32 md:pb-12 mt-auto">
+      <div className="mx-auto max-w-7xl px-4 py-12 md:py-16">
+        
+        {/* TOP SECTION: 4 Columns */}
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:gap-12">
+          
+          {/* Column 1: Brand & Socials */}
+          <div className="col-span-2 md:col-span-1">
+            <Link href="/" className="flex items-center mb-4">
+              <Image src="/logo-black.png" alt={SITE_NAME} width={120} height={30} className="h-8 w-auto opacity-90 block dark:hidden" />
+              <Image src="/logo-white.png" alt={SITE_NAME} width={120} height={30} className="h-8 w-auto opacity-90 hidden dark:block" />
+            </Link>
+            <p className="text-sm text-muted-foreground mb-6 max-w-xs leading-relaxed">
+              The safest and easiest way to buy and sell within your community. Find everything you need right around the corner.
+            </p>
+            <div className="flex items-center gap-4">
+              <a 
+                href="https://www.facebook.com/profile.php?id=100091458324276" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all"
+                title="Facebook"
+              >
+                <Facebook className="h-5 w-5" />
+              </a>
+              <a 
+                href="https://wa.me/2348075771583" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:bg-[#25D366] hover:text-white transition-all"
+                title="WhatsApp"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </a>
+            </div>
+          </div>
+
+          {/* Column 2: Company */}
+          <div>
+            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4">Company</h3>
+            <ul className="space-y-3 text-sm">
+              <li><Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">About Us</Link></li>
+              <li><Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">Contact Support</Link></li>
+              <li><Link href="/verified-sellers" className="text-muted-foreground hover:text-primary transition-colors">Verified Sellers</Link></li>
+              <li><Link href="/careers" className="text-muted-foreground hover:text-primary transition-colors">Careers</Link></li>
+            </ul>
+          </div>
+
+          {/* Column 3: Legal */}
+          <div>
+            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4">Legal</h3>
+            <ul className="space-y-3 text-sm">
+              <li><Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/cookies" className="text-muted-foreground hover:text-primary transition-colors">Cookie Policy</Link></li>
+              <li><Link href="/safety" className="text-muted-foreground hover:text-primary transition-colors">Safety Guidelines</Link></li>
+            </ul>
+          </div>
+
+          {/* Column 4: Contact Support (Updated) */}
+          <div>
+            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4">Contact Us</h3>
+            <ul className="space-y-4 text-sm">
+              <li>
+                <a href="mailto:joenation98@gmail.com" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                  <Mail className="h-4 w-4 shrink-0" /> joenation98@gmail.com
+                </a>
+              </li>
+              <li>
+                <a href="https://wa.me/2348075771583" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                  <MessageCircle className="h-4 w-4 shrink-0" /> +234 807 577 1583 (WhatsApp)
+                </a>
+              </li>
+              <li>
+                <a href="tel:+2348022670705" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                  <Phone className="h-4 w-4 shrink-0" /> +234 802 267 0705 (Calls)
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* BOTTOM SECTION: Copyright & Payment Methods */}
+        <div className="mt-12 border-t border-border pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} {SITE_NAME}. All rights reserved. Built by PrimeWeb Designs.
+          </p>
+          <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+            <span>Secure Payments via:</span>
+            <span className="font-bold text-foreground">Moniepoint</span>
+            <span className="font-bold text-foreground">Bank Transfer</span>
+          </div>
+        </div>
+
       </div>
     </footer>
   );

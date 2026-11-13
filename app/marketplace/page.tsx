@@ -31,7 +31,7 @@ const getCategoryStyle = (name: string) => {
 
 const POPULAR_SEARCHES = ['iPhones', 'Laptops', 'Sneakers', 'Food', 'Hair', 'Perfumes'];
 
-// 5-SECOND AUTO-SCROLLING ROW
+// 5-SECOND AUTO-SCROLLING ROW (FIXED SIZING)
 function AutoScrollRow({ items }: { items: any[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +52,10 @@ function AutoScrollRow({ items }: { items: any[] }) {
   return (
     <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {items.map((item) => (
-        <ListingCard key={item.id} listing={item} />
+        // FIXED: Wrapped in a fixed-width container (160px) so they don't stretch
+        <div key={item.id} className="w-[160px] shrink-0">
+          <ListingCard listing={item} />
+        </div>
       ))}
     </div>
   );
@@ -124,41 +127,21 @@ export default function MarketplacePage() {
     setHasSearched(isSearching);
 
     try {
-      // ---------------------------------------------------------
-      // 1. SEARCH SELLERS (Bulletproof Logic)
-      // ---------------------------------------------------------
+      // 1. SEARCH SELLERS
       if (searchQuery.trim()) {
         const term = `%${searchQuery.trim()}%`;
+        const { data: profiles } = await supabase.from('seller_profiles').select('user_id').ilike('business_name', term);
+        const { data: users } = await supabase.from('users').select('id').in('role', ['seller', 'admin']).ilike('name', term);
 
-        // Find sellers by store name
-        const { data: profiles } = await supabase
-          .from('seller_profiles')
-          .select('user_id')
-          .ilike('business_name', term);
-
-        // Find sellers by their personal name
-        const { data: users } = await supabase
-          .from('users')
-          .select('id')
-          .in('role', ['seller', 'admin'])
-          .ilike('name', term);
-
-        // Combine unique user IDs (Fixed TypeScript Error here)
         const profileIds = profiles?.map(p => p.user_id) || [];
         const userIds = users?.map(u => u.id) || [];
-        const combinedIds = profileIds.concat(userIds);
-        const allIds = Array.from(new Set(combinedIds));
+        const allIds = Array.from(new Set(profileIds.concat(userIds)));
 
-        // Fetch full details for these matching sellers
         if (allIds.length > 0) {
           const { data: sellersData } = await supabase
             .from('users')
-            .select(`
-              id, name, store_slug, seller_code, verification_level,
-              seller_profiles(business_name, logo_url, based_city)
-            `)
+            .select(`id, name, store_slug, seller_code, verification_level, seller_profiles(business_name, logo_url, based_city)`)
             .in('id', allIds);
-          
           setSearchedSellers(sellersData || []);
         } else {
           setSearchedSellers([]);
@@ -167,26 +150,18 @@ export default function MarketplacePage() {
         setSearchedSellers([]);
       }
 
-      // ---------------------------------------------------------
       // 2. SEARCH LISTINGS
-      // ---------------------------------------------------------
       let query = supabase
         .from('listings')
-        .select(`
-          *, 
-          users(name, verification_level, store_slug), 
-          seller_profiles!listings_seller_profile_fkey(business_name, logo_url)
-        `)
+        .select(`*, users(name, verification_level, store_slug), seller_profiles!listings_seller_profile_fkey(business_name, logo_url)`)
         .eq('status', 'active');
 
       if (searchQuery.trim()) {
         const term = `%${searchQuery.trim()}%`;
         const { data: matchingSellers } = await supabase.from('seller_profiles').select('user_id').ilike('business_name', term);
         const sellerIds = matchingSellers?.map(s => s.user_id) || [];
-        
         let orCondition = `title.ilike.${term},category.ilike.${term}`;
         if (sellerIds.length > 0) orCondition += `,seller_id.in.(${sellerIds.join(',')})`;
-        
         query = query.or(orCondition);
       }
 
@@ -325,7 +300,7 @@ export default function MarketplacePage() {
         {hasSearched ? (
           <div className="space-y-8">
             
-            {/* 1. MATCHING SELLERS/STORES */}
+            {/* MATCHING SELLERS */}
             {searchedSellers.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -345,16 +320,10 @@ export default function MarketplacePage() {
                         className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-4 text-center shadow-sm transition-transform hover:-translate-y-1"
                       >
                         <div className="relative mb-3 h-16 w-16 overflow-hidden rounded-full bg-muted flex items-center justify-center border border-border">
-                          {storeLogo ? (
-                            <Image src={storeLogo} alt={storeName} fill className="object-cover" />
-                          ) : (
-                            <Store className="h-6 w-6 text-muted-foreground" />
-                          )}
+                          {storeLogo ? <Image src={storeLogo} alt={storeName} fill className="object-cover" /> : <Store className="h-6 w-6 text-muted-foreground" />}
                         </div>
                         <div className="flex items-center justify-center gap-1 w-full mb-1">
-                          <h3 className="font-bold text-foreground text-[13px] truncate max-w-[90px]">
-                            {storeName}
-                          </h3>
+                          <h3 className="font-bold text-foreground text-[13px] truncate max-w-[90px]">{storeName}</h3>
                           {seller.verification_level === 'verified' && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />}
                         </div>
                         <p className="text-[10px] font-semibold text-muted-foreground uppercase truncate w-full">
@@ -367,7 +336,7 @@ export default function MarketplacePage() {
               </div>
             )}
 
-            {/* 2. MATCHING PRODUCTS */}
+            {/* MATCHING PRODUCTS */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -477,16 +446,10 @@ export default function MarketplacePage() {
                         className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-4 text-center shadow-sm transition-transform hover:-translate-y-1"
                       >
                         <div className="relative mb-3 h-16 w-16 overflow-hidden rounded-full bg-muted flex items-center justify-center border border-border">
-                          {storeLogo ? (
-                            <Image src={storeLogo} alt={storeName} fill className="object-cover" />
-                          ) : (
-                            <Store className="h-6 w-6 text-muted-foreground" />
-                          )}
+                          {storeLogo ? <Image src={storeLogo} alt={storeName} fill className="object-cover" /> : <Store className="h-6 w-6 text-muted-foreground" />}
                         </div>
                         <div className="flex items-center justify-center gap-1 w-full mb-1">
-                          <h3 className="font-bold text-foreground text-[13px] truncate max-w-[90px]">
-                            {storeName}
-                          </h3>
+                          <h3 className="font-bold text-foreground text-[13px] truncate max-w-[90px]">{storeName}</h3>
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
                         </div>
                         <p className="text-[10px] font-semibold text-muted-foreground uppercase truncate w-full">

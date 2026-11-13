@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download, X } from 'lucide-react';
+import { Download, X, Share } from 'lucide-react';
 
 export function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -9,16 +9,16 @@ export function PWAInstallBanner() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // 1. Check if it's an iPhone/iPad
+    // 1. Check if user dismissed it previously
+    const isDismissed = localStorage.getItem('pwa_banner_dismissed');
+    if (isDismissed) return;
+
+    // 2. Check if it's an iPhone
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIosDevice);
 
-    // 2. Check if user dismissed it previously
-    const isDismissed = localStorage.getItem('pwa_banner_dismissed');
-    if (isDismissed) return;
-
-    // 3. Listen for Android/Desktop install prompt
+    // 3. Listen for the native Android/Desktop prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -27,23 +27,34 @@ export function PWAInstallBanner() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // 4. Force show on iPhone (since beforeinstallprompt doesn't exist on iOS)
-    if (isIosDevice) {
-      setShowBanner(true);
-    }
+    // 4. FALLBACK TIMER: If the browser doesn't fire the prompt in 3 seconds,
+    // we show the banner anyway so the user can see it.
+    const timer = setTimeout(() => {
+      if (!localStorage.getItem('pwa_banner_dismissed')) {
+        setShowBanner(true);
+      }
+    }, 3000);
 
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setShowBanner(false);
-      localStorage.setItem('pwa_banner_dismissed', 'true');
+    // If the browser gave us a prompt, trigger it natively
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowBanner(false);
+        localStorage.setItem('pwa_banner_dismissed', 'true');
+      }
+      setDeferredPrompt(null);
+    } else {
+      // If no prompt, show instructions
+      alert("To install: Tap your browser's menu (3 dots) and select 'Add to Home Screen' or 'Install App'.");
     }
-    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
@@ -62,7 +73,9 @@ export function PWAInstallBanner() {
         <div>
           <p className="text-sm font-bold">Install PrimeMart</p>
           {isIOS ? (
-            <p className="text-xs opacity-80">Tap <b>Share</b> then <b>Add to Home Screen</b>.</p>
+            <p className="text-xs opacity-80 flex items-center gap-1">
+              Tap <Share className="h-3 w-3 mx-1" /> then <b>Add to Home Screen</b>.
+            </p>
           ) : (
             <p className="text-xs opacity-80">Add to home screen for quick access.</p>
           )}
