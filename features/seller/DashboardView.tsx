@@ -29,8 +29,14 @@ export function DashboardView({
   const isPending = user.seller_status === 'pending';
   const isLapsed = user.seller_status === 'lapsed';
   
-  // They are restricted if they are pending, unpaid, or lapsed (Admins bypass this)
   const isRestricted = !isAdmin && (isUnpaid || isPending || isLapsed);
+
+  // NEW: Check if they hit the 20 active listing limit
+  const activeListingsCount = listings.filter(l => l.status === 'active').length;
+  const isAtLimit = activeListingsCount >= 20;
+
+  // They are fully locked out if restricted OR at the limit
+  const isAddListingDisabled = isRestricted || isAtLimit;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -48,7 +54,6 @@ export function DashboardView({
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              {/* ANALYTICS BUTTON - DISABLED IF RESTRICTED */}
               <Link 
                 href={isRestricted ? '#' : '/seller/analytics'} 
                 className={`flex items-center justify-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-medium transition-all ${
@@ -58,7 +63,6 @@ export function DashboardView({
                 <BarChart className="h-4 w-4" /> Analytics
               </Link>
               
-              {/* SETTINGS BUTTON - DISABLED IF RESTRICTED */}
               <Link 
                 href={isRestricted ? '#' : '/seller/settings'} 
                 className={`flex items-center justify-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-medium transition-all ${
@@ -68,19 +72,30 @@ export function DashboardView({
                 <Settings className="h-4 w-4" /> Settings
               </Link>
 
-              {/* ADD LISTING BUTTON - DISABLED IF RESTRICTED */}
               <Link 
-                href={isRestricted ? '/seller/paywall' : '/seller/listings/new'} 
+                href={isAddListingDisabled ? (isRestricted ? '/seller/paywall' : '#') : '/seller/listings/new'} 
                 className={`flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium transition-all ${
-                  isRestricted
+                  isAddListingDisabled
                     ? 'bg-muted text-muted-foreground cursor-not-allowed pointer-events-none' 
                     : 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105'
                 }`}
               >
-                {isRestricted ? <Lock className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
-                {isUnpaid ? 'Pay to Publish' : isPending ? 'Pending Approval' : isLapsed ? 'Renew to Publish' : 'Add Listing'}
+                {isAddListingDisabled ? <Lock className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
+                {isUnpaid ? 'Pay to Publish' : isPending ? 'Pending Approval' : isLapsed ? 'Renew to Publish' : isAtLimit ? 'Limit Reached' : 'Add Listing'}
               </Link>
             </div>
+          </div>
+        )}
+
+        {/* LIMIT REACHED BANNER */}
+        {isAtLimit && !isRestricted && (
+          <div className="mb-8 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-6 text-orange-500 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-lg font-semibold">
+              <AlertCircle className="h-6 w-6" /> Listing Limit Reached (20/20)
+            </div>
+            <p className="mt-2 text-sm opacity-90">
+              You have reached the maximum of 20 active listings. To add a new item, please delete or mark an existing product as "Sold" first to free up space.
+            </p>
           </div>
         )}
 
@@ -119,7 +134,7 @@ export function DashboardView({
           <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <p className="text-sm font-medium text-muted-foreground">Active Listings</p>
-            <p className="mt-2 text-4xl font-bold text-foreground">{listings.filter(l => l.status === 'active').length}</p>
+            <p className="mt-2 text-4xl font-bold text-foreground">{activeListingsCount}</p>
           </div>
           
           <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">

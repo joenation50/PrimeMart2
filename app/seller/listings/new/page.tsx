@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
-import { Loader2, Upload, X, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Loader2, Upload, X, ArrowLeft, AlertCircle, Lock } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -21,6 +21,9 @@ export default function SellerNewListingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // NEW: Limit state
+  const [isAtLimit, setIsAtLimit] = useState(false);
 
   const [form, setForm] = useState({
     title: '',
@@ -34,16 +37,33 @@ export default function SellerNewListingPage() {
   const [previews, setPreviews] = useState<string[]>([]);
 
   useEffect(() => {
-    async function fetchCategories() {
+    async function fetchData() {
       const supabase = createBrowserSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push('/login'); return; }
+
+      // 1. Check Active Listings Count
+      const { count } = await supabase
+        .from('listings')
+        .select('*', { count: 'exact', head: true })
+        .eq('seller_id', user.id)
+        .eq('status', 'active');
+
+      if (count !== null && count >= 20) {
+        setIsAtLimit(true);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fetch Categories
       const { data, error } = await supabase.from('categories').select('*').eq('active', true).order('sort_order');
       if (!error && data && data.length > 0) {
         setCategories(data);
       }
       setLoading(false);
     }
-    fetchCategories();
-  }, []);
+    fetchData();
+  }, [router]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
@@ -79,7 +99,7 @@ export default function SellerNewListingPage() {
     }
 
     try {
-      // 1. Ensure Seller Profile Exists
+      // Ensure Seller Profile Exists
       const { data: existingProfile } = await supabase
         .from('seller_profiles')
         .select('user_id')
@@ -96,7 +116,7 @@ export default function SellerNewListingPage() {
         });
       }
 
-      // 2. Upload Images & Filter out bad links
+      // Upload Images
       const uploadedUrls: string[] = [];
       for (const file of files) {
         const formData = new FormData();
@@ -109,7 +129,6 @@ export default function SellerNewListingPage() {
         });
         
         const data = await res.json();
-        // Strict check: Only save valid full URLs
         if (data.secure_url && data.secure_url.startsWith('http')) {
           uploadedUrls.push(data.secure_url);
         }
@@ -119,7 +138,7 @@ export default function SellerNewListingPage() {
         throw new Error('Image upload failed. Please try again.');
       }
 
-      // 3. Save Listing
+      // Save Listing
       const { error } = await supabase.from('listings').insert({
         seller_id: user.id,
         title: form.title,
@@ -132,7 +151,8 @@ export default function SellerNewListingPage() {
       });
 
       if (error) {
-        throw new Error(`Database Error: ${error.message}`);
+        // This will catch the database trigger error if they somehow bypassed the frontend check
+        throw new Error(error.message);
       }
       
       router.push('/seller/listings');
@@ -145,6 +165,24 @@ export default function SellerNewListingPage() {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  // BLOCK THE FORM IF THEY ARE AT THE LIMIT
+  if (isAtLimit) {
+    return (
+      <div className="container mx-auto max-w-2xl px-4 py-20 text-center">
+        <div className="glass-card rounded-3xl p-12">
+          <Lock className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <h1 className="text-2xl font-bold text-foreground mb-2">Listing Limit Reached</h1>
+          <p className="text-muted-foreground mb-8">
+            You have reached the maximum limit of 20 active listings. To add a new product, please delete or mark an existing product as "Sold" from your dashboard first.
+          </p>
+          <Link href="/seller/listings" className="rounded-full bg-primary px-8 py-3 font-semibold text-primary-foreground">
+            Go to My Listings
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
