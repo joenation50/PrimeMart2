@@ -3,19 +3,40 @@
 import { useEffect, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase-browser';
 import { ListingGrid, SkeletonGrid } from '@/features/marketplace/grid';
-import { Search, AlertCircle } from 'lucide-react';
+import { Search, AlertCircle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
+import Image from 'next/image';
 
 const CATEGORIES = ['All', 'Fashion', 'Electronics', 'Home', 'Services', 'Vehicles'];
 
 export default function MarketplacePage() {
   const [listings, setListings] = useState<any[]>([]);
+  const [banners, setBanners] = useState<any[]>([]); // <-- BANNER STATE
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [sortBy, setSortBy] = useState('newest');
 
+  // 1. FETCH ACTIVE BANNERS
+  useEffect(() => {
+    async function fetchBanners() {
+      const supabase = createBrowserSupabase();
+      const { data, error } = await supabase
+        .from('banners')
+        .select('*')
+        .eq('active', true)
+        .order('created_at', { ascending: false });
+        
+      if (!error && data) {
+        setBanners(data);
+      }
+    }
+    fetchBanners();
+  }, []);
+
+  // 2. FETCH LISTINGS (WITH UNIVERSAL SEARCH)
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
@@ -31,7 +52,6 @@ export default function MarketplacePage() {
         `)
         .eq('status', 'active');
 
-      // UNIVERSAL SEARCH LOGIC
       if (searchQuery.trim()) {
         const term = `%${searchQuery.trim()}%`;
         
@@ -73,6 +93,49 @@ export default function MarketplacePage() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
+      
+      {/* --- BANNER CAROUSEL --- */}
+      {banners.length > 0 && (
+        <div className="mx-auto max-w-7xl px-4 pt-6">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {banners.map((banner) => (
+              <Link 
+                key={banner.id} 
+                href={banner.cta_url || '/marketplace'} 
+                className="group relative flex min-h-[160px] w-full shrink-0 snap-center overflow-hidden rounded-3xl border border-border bg-primary"
+              >
+                {banner.image_url ? (
+                  <Image 
+                    src={banner.image_url} 
+                    alt={banner.headline} 
+                    fill 
+                    className="object-cover transition-transform duration-700 group-hover:scale-105" 
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600" />
+                )}
+                
+                <div className="absolute inset-0 bg-black/40" />
+                
+                <div className="relative z-10 flex w-full items-center justify-between p-6 sm:p-10">
+                  <div>
+                    <h2 className="text-xl font-bold text-white sm:text-3xl">{banner.headline}</h2>
+                    {banner.subtext && <p className="mt-2 text-sm text-white/90 sm:text-base">{banner.subtext}</p>}
+                  </div>
+                  
+                  {banner.cta_text && (
+                    <span className="hidden shrink-0 rounded-full bg-white px-6 py-3 text-sm font-bold text-black sm:flex items-center gap-2">
+                      {banner.cta_text} <ArrowRight className="h-4 w-4" />
+                    </span>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* HEADER & SEARCH */}
       <div className="relative overflow-hidden pt-8 pb-8">
         <div className="relative mx-auto max-w-7xl px-4">
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">Marketplace</h1>
@@ -98,6 +161,7 @@ export default function MarketplacePage() {
         </div>
       </div>
 
+      {/* CATEGORY FILTERS */}
       <div className="sticky top-16 z-30 glass-nav border-b border-border">
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex gap-2 overflow-x-auto py-4 [scrollbar-width:none]">
@@ -114,6 +178,7 @@ export default function MarketplacePage() {
         </div>
       </div>
 
+      {/* LISTINGS GRID */}
       <div className="mx-auto max-w-7xl px-4 py-8">
         {errorMsg && (
           <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-500/10 p-4 text-red-500">
