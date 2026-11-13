@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { baseMetadata } from '@/lib/seo';
 import { ThemeProvider } from '@/components/theme-provider';
 import { GlobalLayout } from '@/components/global-layout';
+import { PWAInstallBanner } from '@/components/pwa-install-banner'; // <-- Added Import
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -18,6 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <GlobalLayout>
             {children}
           </GlobalLayout>
+          
+          {/* PWA Install Banner */}
+          <PWAInstallBanner />
         </ThemeProvider>
       </body>
     </html>

@@ -25,8 +25,9 @@ export default function SellerDashboardPage() {
       if (profileData.role === 'buyer') { window.location.href = '/buyer'; return; }
       if (profileData.role === 'admin') { window.location.href = '/admin'; return; }
 
-      // If seller is unpaid, kick to paywall
-      if (profileData.seller_status === 'unpaid' || profileData.seller_status === 'pending') {
+      // FIXED: Only kick them out if they are completely UNPAID. 
+      // If they are 'pending', they are allowed to see the dashboard.
+      if (profileData.seller_status === 'unpaid') {
         window.location.href = '/seller/paywall'; return;
       }
 
