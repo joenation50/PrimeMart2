@@ -6,7 +6,7 @@ import { ListingCard, ListingGrid, SkeletonGrid } from '@/features/marketplace/g
 import { 
   Search, Bell, Settings, AlertCircle, Package,
   Shirt, Smartphone, Home, Wrench, Car, Tag, CheckCircle2, Store,
-  Soup, Flower2, Truck, HeartPulse, BookOpen, Laptop, ArrowRight, Sparkles, ShieldCheck, Zap, TrendingUp
+  Soup, Flower2, Truck, HeartPulse, BookOpen, Laptop, ArrowRight, Sparkles, TrendingUp, X, SlidersHorizontal
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -14,18 +14,18 @@ import { cn } from '@/lib/utils';
 
 const getCategoryStyle = (name: string) => {
   const normalized = name.toLowerCase();
-  if (normalized.includes('fashion')) return { icon: Shirt, color: 'text-pink-500' };
-  if (normalized.includes('electronic')) return { icon: Smartphone, color: 'text-blue-500' };
-  if (normalized.includes('gadget')) return { icon: Laptop, color: 'text-indigo-500' };
-  if (normalized.includes('home')) return { icon: Home, color: 'text-orange-500' };
-  if (normalized.includes('service')) return { icon: Wrench, color: 'text-green-500' };
-  if (normalized.includes('vehicle') || normalized.includes('car')) return { icon: Car, color: 'text-yellow-500' };
-  if (normalized.includes('transport')) return { icon: Truck, color: 'text-amber-500' };
-  if (normalized.includes('food')) return { icon: Soup, color: 'text-orange-600' };
-  if (normalized.includes('beauty')) return { icon: Flower2, color: 'text-rose-500' };
-  if (normalized.includes('health')) return { icon: HeartPulse, color: 'text-red-500' };
-  if (normalized.includes('tutorial')) return { icon: BookOpen, color: 'text-purple-500' };
-  return { icon: Tag, color: 'text-primary' };
+  if (normalized.includes('fashion')) return { icon: Shirt, color: 'text-pink-500', bg: 'bg-pink-500/10' };
+  if (normalized.includes('electronic')) return { icon: Smartphone, color: 'text-blue-500', bg: 'bg-blue-500/10' };
+  if (normalized.includes('gadget')) return { icon: Laptop, color: 'text-indigo-500', bg: 'bg-indigo-500/10' };
+  if (normalized.includes('home')) return { icon: Home, color: 'text-orange-500', bg: 'bg-orange-500/10' };
+  if (normalized.includes('service')) return { icon: Wrench, color: 'text-green-500', bg: 'bg-green-500/10' };
+  if (normalized.includes('vehicle') || normalized.includes('car')) return { icon: Car, color: 'text-yellow-500', bg: 'bg-yellow-500/10' };
+  if (normalized.includes('transport')) return { icon: Truck, color: 'text-amber-500', bg: 'bg-amber-500/10' };
+  if (normalized.includes('food')) return { icon: Soup, color: 'text-orange-600', bg: 'bg-orange-600/10' };
+  if (normalized.includes('beauty')) return { icon: Flower2, color: 'text-rose-500', bg: 'bg-rose-500/10' };
+  if (normalized.includes('health')) return { icon: HeartPulse, color: 'text-red-500', bg: 'bg-red-500/10' };
+  if (normalized.includes('tutorial')) return { icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-500/10' };
+  return { icon: Tag, color: 'text-primary', bg: 'bg-primary/10' };
 };
 
 const POPULAR_SEARCHES = ['iPhones', 'Laptops', 'Sneakers', 'Food', 'Hair', 'Perfumes'];
@@ -49,9 +49,8 @@ function AutoScrollRow({ items }: { items: any[] }) {
 
   return (
     <div className="relative">
-      {/* Fade masks for premium feel */}
-      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 hidden sm:block" />
-      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 hidden sm:block" />
+      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-background to-transparent z-10 hidden sm:block" />
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background to-transparent z-10 hidden sm:block" />
       
       <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x">
         {items.map((item) => (
@@ -104,7 +103,7 @@ export default function MarketplacePage() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => { performSearch(); }, 500);
+    const timer = setTimeout(() => { performSearch(); }, 600);
     return () => clearTimeout(timer);
   }, [searchQuery, minPrice, maxPrice, activeCategory]);
 
@@ -117,25 +116,31 @@ export default function MarketplacePage() {
     setHasSearched(isSearching);
 
     try {
-      if (searchQuery.trim()) {
-        const term = `%${searchQuery.trim()}%`;
+      let sellerIds: string[] = [];
+      const rawTerm = searchQuery.trim();
+
+      if (rawTerm) {
+        const term = `%${rawTerm}%`;
         const { data: profiles } = await supabase.from('seller_profiles').select('user_id').ilike('business_name', term);
         const { data: users } = await supabase.from('users').select('id').in('role', ['seller', 'admin']).ilike('name', term);
-        const allIds = Array.from(new Set([...(profiles?.map(p => p.user_id) || []), ...(users?.map(u => u.id) || [])]));
+        
+        sellerIds = Array.from(new Set([...(profiles?.map(p => p.user_id) || []), ...(users?.map(u => u.id) || [])]));
 
-        if (allIds.length > 0) {
-          const { data: sellersData } = await supabase.from('users').select(`id, name, store_slug, seller_code, verification_level, seller_profiles(business_name, logo_url, based_city)`).in('id', allIds);
+        if (sellerIds.length > 0) {
+          const { data: sellersData } = await supabase.from('users').select(`id, name, store_slug, seller_code, verification_level, seller_profiles(business_name, logo_url, based_city)`).in('id', sellerIds);
           setSearchedSellers(sellersData || []);
-        } else { setSearchedSellers([]); }
-      } else { setSearchedSellers([]); }
+        } else { 
+          setSearchedSellers([]); 
+        }
+      } else { 
+        setSearchedSellers([]); 
+      }
 
       let query = supabase.from('listings').select(`*, users(name, verification_level, store_slug), seller_profiles!listings_seller_profile_fkey(business_name, logo_url)`).eq('status', 'active');
 
-      if (searchQuery.trim()) {
-        const term = `%${searchQuery.trim()}%`;
-        const { data: matchingSellers } = await supabase.from('seller_profiles').select('user_id').ilike('business_name', term);
-        const sellerIds = matchingSellers?.map(s => s.user_id) || [];
-        let orCondition = `title.ilike.${term},category.ilike.${term}`;
+      if (rawTerm) {
+        const term = `%${rawTerm}%`;
+        let orCondition = `title.ilike.${term},category.ilike.${term},description.ilike.${term}`;
         if (sellerIds.length > 0) orCondition += `,seller_id.in.(${sellerIds.join(',')})`;
         query = query.or(orCondition);
       }
@@ -185,59 +190,71 @@ export default function MarketplacePage() {
   return (
     <div className="min-h-screen bg-background pb-32 transition-colors duration-300">
       
-      {/* HEADER & SEARCH */}
-      <div className="relative px-5 pt-12 pb-8">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-64 bg-primary/10 blur-[100px] rounded-full pointer-events-none" />
+      {/* PREMIUM GREEN HEADER */}
+      <div className="relative bg-gradient-to-br from-primary via-primary/90 to-emerald-950 pt-12 pb-28 px-5 rounded-b-[2.5rem] shadow-sm overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
+        <div className="absolute top-[-50%] right-[-10%] w-64 h-64 bg-white/10 blur-[80px] rounded-full pointer-events-none" />
 
-        <div className="relative z-10 flex items-center justify-between mb-8">
+        <div className="relative z-10 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
               Hi, {greetingName} <span className="text-2xl">👋</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-1 font-medium">What are you shopping for today?</p>
+            <p className="text-sm text-white/80 mt-1 font-medium">What are you shopping for today?</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/buyer/account" className="p-2.5 rounded-full bg-secondary border border-border text-foreground hover:bg-secondary/80 transition-colors">
+            <Link href="/buyer/account" className="p-2.5 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all backdrop-blur-md shadow-sm">
               <Settings className="h-5 w-5" />
             </Link>
-            <Link href="/buyer/notifications" className="relative p-2.5 rounded-full bg-secondary border border-border text-foreground hover:bg-secondary/80 transition-colors">
+            <Link href="/buyer/notifications" className="relative p-2.5 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all backdrop-blur-md shadow-sm">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-red-500 border-2 border-background"></span>
+              <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-red-500 border-2 border-emerald-600"></span>
             </Link>
           </div>
         </div>
+      </div>
 
-        {/* SEARCH BAR */}
-        <div className="relative z-10 mb-4">
-          <div className="relative flex items-center w-full h-14 rounded-2xl bg-card border border-border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all shadow-sm">
+      {/* FLOATING SEARCH & FILTER CARD */}
+      <div className="relative z-20 px-5 -mt-16 mb-8">
+        <div className="rounded-[2rem] bg-card p-4 shadow-xl border border-border">
+          
+          <div className="relative flex items-center w-full h-12 rounded-xl bg-secondary border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 transition-all mb-3 overflow-hidden">
             <Search className="absolute left-4 h-5 w-5 text-muted-foreground" />
             <input 
               type="text" 
               placeholder="Search products, brands, or stores..." 
               value={searchQuery} 
               onChange={(e) => { setSearchQuery(e.target.value); setActiveCategory('All'); }} 
-              className="w-full h-full bg-transparent pl-12 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none text-sm font-medium" 
+              className="w-full h-full bg-transparent pl-12 pr-10 text-foreground placeholder:text-muted-foreground focus:outline-none text-sm font-medium" 
             />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-3 p-1.5 rounded-full bg-border/50 text-muted-foreground hover:bg-border transition-colors">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-        </div>
 
-        {/* PRICE FILTERS */}
-        <div className="relative z-10 flex gap-2">
-          <input type="number" placeholder="Min ₦" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
-          <input type="number" placeholder="Max ₦" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
-          <button onClick={performSearch} className="shrink-0 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-colors">Filter</button>
+          <div className="flex gap-2 items-center">
+            <div className="flex-1 flex gap-2">
+              <input type="number" placeholder="Min ₦" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
+              <input type="number" placeholder="Max ₦" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
+            </div>
+            <button onClick={performSearch} className="shrink-0 flex items-center justify-center h-[42px] w-[42px] rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm">
+              <SlidersHorizontal className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="px-5 mt-4">
+      <div className="px-5">
         
         {/* POPULAR SEARCHES */}
         {!hasSearched && (
           <div className="mb-10">
             <div className="flex flex-wrap gap-2">
               {POPULAR_SEARCHES.map((term) => (
-                <button key={term} onClick={() => { setSearchQuery(term); setActiveCategory('All'); }} className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors flex items-center gap-1.5">
-                  <TrendingUp className="h-3.5 w-3.5 text-primary" /> {term}
+                <button key={term} onClick={() => { setSearchQuery(term); setActiveCategory('All'); }} className="group rounded-full border border-border bg-card px-4 py-2 text-sm font-bold text-foreground hover:bg-secondary hover:border-primary/30 transition-all flex items-center gap-1.5 shadow-sm">
+                  <TrendingUp className="h-3.5 w-3.5 text-primary group-hover:scale-110 transition-transform" /> {term}
                 </button>
               ))}
             </div>
@@ -266,7 +283,7 @@ export default function MarketplacePage() {
                     const storeLogo = seller.seller_profiles?.logo_url;
                     const storeSlug = seller.store_slug || seller.seller_code;
                     return (
-                      <Link key={seller.id} href={`/store/${storeSlug}`} className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-5 text-center hover:border-primary/30 transition-all shadow-sm">
+                      <Link key={seller.id} href={`/store/${storeSlug}`} className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-5 text-center hover:border-primary/30 hover:shadow-md transition-all shadow-sm">
                         <div className="relative mb-3 h-16 w-16 overflow-hidden rounded-full bg-secondary flex items-center justify-center border border-border">
                           {storeLogo ? <Image src={storeLogo} alt={storeName} fill className="object-cover" /> : <Store className="h-6 w-6 text-muted-foreground" />}
                         </div>
@@ -289,19 +306,19 @@ export default function MarketplacePage() {
                   <Package className="h-5 w-5 text-primary" />
                   <h2 className="text-lg font-bold text-foreground">{activeCategory !== 'All' ? `Best in ${activeCategory}` : 'Matching Products'}</h2>
                 </div>
-                <button onClick={clearFilters} className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">Clear Filters</button>
+                <button onClick={clearFilters} className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors bg-secondary px-3 py-1.5 rounded-lg border border-border">Clear Filters</button>
               </div>
 
               {loading ? (
                 <SkeletonGrid count={4} />
               ) : listings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-card py-20 px-6 text-center shadow-sm">
-                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+                <div className="flex flex-col items-center justify-center rounded-[2rem] border border-border bg-card py-20 px-6 text-center shadow-sm">
+                  <div className="mb-5 flex h-24 w-24 items-center justify-center rounded-full bg-secondary border border-border">
                     <Search className="h-10 w-10 text-muted-foreground opacity-50" />
                   </div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">No products found</h3>
-                  <p className="text-sm text-muted-foreground max-w-[250px]">Try adjusting your price filters or checking your spelling.</p>
-                  <button onClick={clearFilters} className="mt-6 text-sm font-bold text-primary">Clear all filters</button>
+                  <h3 className="text-xl font-black text-foreground mb-2">No results for "{searchQuery}"</h3>
+                  <p className="text-sm text-muted-foreground max-w-[280px]">We couldn't find anything matching your search. Try different keywords or adjust your filters.</p>
+                  <button onClick={clearFilters} className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm">Clear all filters</button>
                 </div>
               ) : (
                 <ListingGrid listings={listings} />
@@ -312,7 +329,7 @@ export default function MarketplacePage() {
           /* HOMEPAGE VIEW */
           <div className="space-y-12">
             
-            {/* DYNAMIC ADMIN BANNERS (Upgraded Premium Carousel) */}
+            {/* DYNAMIC ADMIN BANNERS */}
             {banners.length > 0 && (
               <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {banners.map((banner) => (
@@ -321,19 +338,16 @@ export default function MarketplacePage() {
                     href={banner.cta_url || '/marketplace'} 
                     className="group relative flex h-[180px] w-[90%] sm:w-full shrink-0 snap-center overflow-hidden rounded-3xl bg-card border border-border shadow-sm"
                   >
-                    {/* Background Image */}
                     {banner.image_url && (
                       <Image src={banner.image_url} alt={banner.headline} fill className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-700" />
                     )}
-                    
-                    {/* Gradient Overlay for Text Legibility */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent" />
 
                     <div className="relative z-10 flex flex-col justify-center p-6 sm:p-8 w-[85%] sm:w-3/4">
-                      <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight drop-shadow-sm">{banner.headline}</h2>
-                      {banner.subtext && <p className="mt-2 text-sm sm:text-base text-zinc-200 line-clamp-2 font-medium drop-shadow-sm">{banner.subtext}</p>}
+                      <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight drop-shadow-md">{banner.headline}</h2>
+                      {banner.subtext && <p className="mt-2 text-sm sm:text-base text-zinc-200 line-clamp-2 font-medium drop-shadow-md">{banner.subtext}</p>}
                       
-                      <div className="mt-4 flex items-center gap-2 text-primary font-bold text-sm">
+                      <div className="mt-4 flex items-center gap-2 text-primary font-bold text-sm bg-black/30 w-fit px-3 py-1.5 rounded-full backdrop-blur-sm">
                         {banner.cta_text || 'Shop Now'} <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>
@@ -342,16 +356,18 @@ export default function MarketplacePage() {
               </div>
             )}
 
-            {/* HARDCODED SELLER PROMO (Fits beautifully under admin banners) */}
+            {/* SELLER PROMO */}
             {userProfile?.role === 'buyer' && (
               <div className="relative w-full overflow-hidden rounded-[2rem] bg-card border border-border shadow-sm">
                 <div className="absolute top-[-20%] right-[-10%] h-[300px] w-[300px] rounded-full bg-primary/10 blur-[80px] pointer-events-none" />
                 <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between p-6 sm:p-8 gap-6">
                   <div className="flex-1 text-center sm:text-left">
-                    <h2 className="text-2xl font-black text-foreground mb-2 tracking-tight">Start selling on PrimeMart</h2>
+                    <h2 className="text-2xl font-black text-foreground mb-2 tracking-tight flex items-center justify-center sm:justify-start gap-2">
+                       <Sparkles className="h-5 w-5 text-primary" /> Start selling on PrimeMart
+                    </h2>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto sm:mx-0">Get your own premium storefront, a custom link, and WhatsApp checkout.</p>
                   </div>
-                  <Link href="/seller/paywall" className="shrink-0 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all flex items-center gap-2">
+                  <Link href="/seller/paywall" className="shrink-0 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all flex items-center gap-2 shadow-sm">
                     Become a Seller <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
@@ -361,14 +377,14 @@ export default function MarketplacePage() {
             {/* CATEGORIES */}
             {categories.length > 0 && (
               <div>
-                <h2 className="text-xl font-bold text-foreground mb-4 tracking-tight">Browse Categories</h2>
+                <h2 className="text-xl font-bold text-foreground mb-5 tracking-tight">Browse Categories</h2>
                 <div className="grid grid-cols-4 gap-y-6 gap-x-3">
                   {categories.map((cat) => {
-                    const { icon: Icon, color } = getCategoryStyle(cat.name);
+                    const { icon: Icon, color, bg } = getCategoryStyle(cat.name);
                     return (
                       <button key={cat.id} onClick={() => handleCategoryClick(cat.name)} className="flex flex-col items-center gap-2 group">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl transition-all bg-card border border-border group-hover:bg-secondary group-hover:border-primary/30 shadow-sm">
-                          <Icon className={cn("h-7 w-7", color)} strokeWidth={2} />
+                        <div className={cn("flex h-16 w-16 items-center justify-center rounded-2xl transition-all bg-card border border-border group-hover:border-primary/30 shadow-sm group-hover:shadow-md", bg)}>
+                          <Icon className={cn("h-7 w-7", color)} strokeWidth={2.5} />
                         </div>
                         <span className="text-[11px] font-bold text-center truncate w-full px-1 text-foreground group-hover:text-primary transition-colors">{cat.name}</span>
                       </button>
@@ -393,7 +409,7 @@ export default function MarketplacePage() {
                     const storeLogo = seller.seller_profiles?.logo_url;
                     const storeSlug = seller.store_slug || seller.seller_code;
                     return (
-                      <Link key={seller.id} href={`/store/${storeSlug}`} className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-5 text-center hover:border-primary/30 transition-all shadow-sm">
+                      <Link key={seller.id} href={`/store/${storeSlug}`} className="w-[140px] shrink-0 flex flex-col items-center justify-center rounded-2xl bg-card border border-border p-5 text-center hover:border-primary/30 hover:shadow-md transition-all shadow-sm">
                         <div className="relative mb-3 h-16 w-16 overflow-hidden rounded-full bg-secondary flex items-center justify-center border-2 border-primary/20 p-0.5">
                           <div className="relative w-full h-full rounded-full overflow-hidden">
                             {storeLogo ? <Image src={storeLogo} alt={storeName} fill className="object-cover" /> : <Store className="h-6 w-6 text-muted-foreground mt-4 ml-4" />}
