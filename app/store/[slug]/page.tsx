@@ -1,10 +1,15 @@
 import { Metadata } from 'next';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createClient } from '@supabase/supabase-js';
 import StoreClient from './StoreClient';
+
+// Initialize Supabase securely for the server side
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   try {
-    const supabase = createServerSupabase();
     const slug = params.slug;
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
     
@@ -22,15 +27,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
     if (!store) return { title: 'Store Not Found | PrimeMart' };
 
-    // Supabase sometimes returns joins as arrays. We safely extract the profile.
     const profile = Array.isArray(store.seller_profiles) ? store.seller_profiles[0] : store.seller_profiles;
-
     const storeName = profile?.business_name || store.name || 'PrimeMart Store';
     const bio = profile?.bio || 'Shop verified items on PrimeMart.';
     const logo = profile?.logo_url || '';
     const storeLink = `primemartapp.name.ng/store/${store.store_slug || store.seller_code}`;
 
-    // This generates the beautiful mockup image for WhatsApp/Twitter
     const ogImageUrl = `/api/og?title=${encodeURIComponent(storeName)}&subtitle=${encodeURIComponent(bio)}&image=${encodeURIComponent(logo)}&link=${encodeURIComponent(storeLink)}`;
 
     return {
